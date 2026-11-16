@@ -35,6 +35,11 @@ Source size here: `storage/` is 2.2 GB over ~1080 origins for all containers. A
 per-container copy is smaller but not tiny, so copying only cookies + localStorage is a
 sensible default.
 
+The storage rows are implemented behind `--storage` (localStorage) and `--idb`
+(IndexedDB, Cache API); cookies and permissions are always copied. Session cookies are
+written as ordinary cookies with a limited lifetime instead of forging a session
+store; sessionStorage is not copied. Service workers are not copied.
+
 ## Reading a live profile
 
 The user's Firefox is usually running. SQLite files are read with the backup API
@@ -47,10 +52,14 @@ inconsistent. Known risk, accepted for v1.
 Data in the agent's profile has to live under userContextId 0, because Playwright's
 persistent context browses in the default context. Renaming directories is not enough:
 each origin directory has a `.metadata-v2` file, and QuotaManager keeps
-`storage.sqlite`; both record the origin with its attributes. R1 tests the rewrite.
+`storage.sqlite`; both record the origin with its attributes. So do the databases
+themselves: `ls/data.sqlite` and `idb/*.sqlite` have a `database.origin` column that
+must be rewritten too. R1 confirmed the whole rewrite works.
 
 ## Firefox versions
 
 The user's Firefox is 160, Camoufox is 158: storage written by a newer Firefox, read by
-an older one. Firefox may reset a store whose schema is newer than it knows. R2 tests
-it. Fallback: row-level copy of cookies and localStorage only, which we fully control.
+an older one. Firefox may reset a store whose schema is newer than it knows. R2 found
+the schema versions equal (cookies 17, localStorage 80, IndexedDB 416), so today
+nothing is reset. If they diverge later: cookies are copied by column name and
+survive; storage would need a row-level copy.

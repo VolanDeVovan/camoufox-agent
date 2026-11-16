@@ -310,6 +310,25 @@ function importStorage(opts, containerId, report) {
     mkdirSync(to, { recursive: true });
     for (const d of subdirs) cpSync(join(from, d), join(to, d), { recursive: true });
     writeFileSync(join(to, ".metadata-v2"), rewriteMetadata(readFileSync(join(from, ".metadata-v2")), containerId));
+    // localStorage and IndexedDB databases record their own origin, attributes
+    // included, and refuse to open under another one (R1).
+    const dbs = [join(to, "ls", "data.sqlite"), ...(existsSync(join(to, "idb")) ? readdirSync(join(to, "idb")).filter((f) => f.endsWith(".sqlite")).map((f) => join(to, "idb", f)) : [])];
+    for (const file of dbs.filter((f) => existsSync(f))) {
+      const db = new sqlite.DatabaseSync(file);
+      try {
+        // (IndexedDB's table is WITHOUT ROWID, so rows are addressed by the origin itself.)
+        for (const row of db.prepare("SELECT DISTINCT origin FROM database").all()) {
+          const cut = String(row.origin).indexOf("^");
+          if (cut < 0) continue;
+          const moved = toDefaultContext(row.origin.slice(cut), containerId);
+          if (moved !== null) db.prepare("UPDATE database SET origin = ? WHERE origin = ?").run(row.origin.slice(0, cut) + moved, row.origin);
+        }
+      } catch {
+        // not a schema we know: the browser will discard this store, nothing else is affected
+      } finally {
+        db.close();
+      }
+    }
     for (const d of subdirs) bytes += dirSize(join(to, d));
   }
   if (copied && !opts.dryRun) {

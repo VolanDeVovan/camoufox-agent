@@ -29,7 +29,7 @@ const base = `http://127.0.0.1:${srv.address().port}`;
 
 // 1. A source profile with a container.
 const srcDir = mkdtempSync(join(tmpdir(), "cfa-r1-src-"));
-const opts = await launchOptions({ headless: true, os: "linux", i_know_what_im_doing: true });
+const opts = await launchOptions({ headless: true, os: "linux", i_know_what_im_doing: true, firefox_user_prefs: { "browser.sessionstore.interval": 2000, "browser.sessionstore.privacy_level": 0 } });
 const ctx = await firefox.launchPersistentContext(srcDir, { ...opts, viewport: null });
 const browser = ctx.browser();
 const container = await browser.newContext({ viewport: null });
@@ -64,7 +64,7 @@ console.log((await call("tabs_create", { url: base + "/check", profile: "importe
 const js = async (code) => (await call("javascript_tool", { text: code })).split("\n").slice(1).join(" ");
 console.log("cookies seen by the server:", await js("document.body.innerText"));
 console.log("localStorage.token:", await js("localStorage.getItem('token')"));
-console.log("indexedDB:", await js(`new Promise((res) => { const o = indexedDB.open("appdb"); o.onsuccess = () => { try { const g = o.result.transaction("kv").objectStore("kv").get("login"); g.onsuccess = () => res("login=" + g.result); g.onerror = () => res("get error"); } catch (e) { res("no store: " + e.message); } }; o.onerror = () => res("open error"); })`));
+console.log("indexedDB:", await js(`new Promise((res) => { const o = indexedDB.open("appdb"); o.onsuccess = () => { try { const g = o.result.transaction("kv").objectStore("kv").get("login"); g.onsuccess = () => res("login=" + g.result); g.onerror = () => res("get error"); } catch (e) { res("no store: " + e.message); } }; o.onerror = () => res("open error: " + (o.error && o.error.name + " " + o.error.message)); })`));
 console.log("dirs:", snap, profiles); await c.close();
 srv.close();
 await sleep(2500);
