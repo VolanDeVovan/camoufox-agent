@@ -1,0 +1,37 @@
+{
+  "name": "camoufox-agent",
+  "version": "0.1.0",
+  "description": "A Camoufox browser for coding agents: MCP server with Claude-in-Chrome-shaped tools, persistent profiles and a per-user daemon",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "camoufox-agent": "dist/mcp/server.js"
+  },
+  "files": [
+    "dist/**/*",
+    "skills/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "camoufox": "0.5.9",
+    "impit": "^0.14.9",
+    "playwright-core": "1.62.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

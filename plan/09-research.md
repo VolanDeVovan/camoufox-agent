@@ -19,3 +19,19 @@ order to run them; there is no R10.
 
 Order: R3 → R4 + R9 → R11 → R7 + R12 → R8 → R5 → R1 / R2 / R6 (only the example
 importer depends on the last three).
+
+## Results
+
+Measured on NixOS (nix-ld), niri, Node 25.9, `camoufox` 0.5.9 (browser
+158.0.1-beta.41), `playwright-core` 1.62.1. Scripts: `research/`.
+
+| # | Answer |
+|---|---|
+| R3 | Launches. `launchOptions()` from the pinned launcher + `firefox.launchPersistentContext` on playwright-core 1.62.1 works headless and headed, ~1.8 s. No `isMobile` rejection on 1.62. Without `os`, the launcher draws any OS; we pass the host's. |
+| R4 | App-id is `camoufox`. `ignoreDefaultArgs: ["-foreground"]` drops Playwright's flag; the window then opens without focus on niri with no rule. `window.open("about:blank", "_blank", "noopener,noreferrer")` from the isolated world opens a tab in the same window (no new toplevel). `page.bringToFront()` selects the tab without focusing or raising the window on Wayland, so follow-the-agent stays, on Wayland only. Caveat: measured while the monitors were in DPMS-off (a lock overlay held keyboard focus), so "a new toplevel never takes focus" is confirmed only for that state; the README documents the optional niri rule. New finding: a tab opened that way dies when navigated to a `data:` URL; http(s) and about: are fine. |
+| R9 | On a hidden workspace or with the screen off: screenshots (~35 ms), timers and humanized mouse moves work; background tabs report `visibilityState: visible`. Only `requestAnimationFrame` stalls (1–2 fps). `widget.wayland.vsync.enabled = false` together with the background-timer prefs brings rAF back to 60 fps in every state; the launch sets them. |
+| R11 | All four reference quirks are fixed on this build: `load` fires after the 5th page (8 more pages tested), back / forward works even with the stock `max_entries`, `mouse.wheel` scrolls, a pointer move to y = 0.5 is answered. The defensive code stays where it is cheap (commit + `readyState` poll, y clamp, `max_entries = 50`); the wheel fallback is not built. |
+| R8 | With `browser.startup.page = 3` and the sessionstore prefs, a cookie without expiry survives close + relaunch; without them it is gone. Under Juggler no restored tab shows up at launch (one `about:blank`); the launch still closes any extra page. |
+| R7, R12 | Answered by the integration tests (two profiles in one daemon, two sessions in one profile, `find_session` live and after a crash). |
+| R5 | Not automated; F12 is a manual check. |
+| R1, R2, R6 | Only the example importer depends on them; see `examples/firefox-import/README.md`. |
