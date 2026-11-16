@@ -23,7 +23,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 test("a running profile is read through the live browser", async () => {

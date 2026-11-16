@@ -32,7 +32,7 @@ afterAll(async () => {
   await a.close();
   await b.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 const lastCookie = () => site.hits.filter((h) => h.url === "/whoami").at(-1)?.headers.cookie || "";

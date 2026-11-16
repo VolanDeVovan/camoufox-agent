@@ -52,7 +52,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 /** Open the fixture and return name -> ref. */

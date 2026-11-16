@@ -34,7 +34,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 test("navigate flags a challenge page and names the vendor", async () => {

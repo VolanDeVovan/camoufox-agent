@@ -28,7 +28,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 test("console is captured from the start, filtered by level and pattern, tokens masked", async () => {

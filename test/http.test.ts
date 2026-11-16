@@ -50,7 +50,7 @@ afterAll(async () => {
   await s.close();
   await a.close();
   await b.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 const lastHit = (f: Fixture) => f.hits.filter((h) => h.url === "/echo").at(-1)!;

@@ -14,7 +14,7 @@ afterAll(async () => {
   await s.call("close_browser", {}).catch(() => {});
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 test("lists its tools", async () => {

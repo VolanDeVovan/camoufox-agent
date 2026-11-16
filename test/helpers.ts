@@ -20,8 +20,16 @@ export function tempDir(prefix = "cfa-test-"): string {
   temps.push(dir);
   return dir;
 }
-export function cleanupTemps(): void {
-  for (const d of temps.splice(0)) rmSync(d, { recursive: true, force: true });
+/**
+ * Remove the temp directories of a test file. The daemon of a profiles directory
+ * outlives its last client for a moment and its browsers write while they close, so
+ * the directory is removed only once that daemon is gone.
+ */
+export async function cleanupTemps(): Promise<void> {
+  const dirs = temps.splice(0);
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline && dirs.some((d) => daemonPids(d).length > 0)) await sleep(200);
+  for (const d of dirs) rmSync(d, { recursive: true, force: true });
 }
 
 export interface Reply {

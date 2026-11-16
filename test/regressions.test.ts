@@ -29,7 +29,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await s.close();
   await site.close();
-  cleanupTemps();
+  await cleanupTemps();
 });
 
 test("tokens in URLs are masked in navigate, tabs_context and link targets", async () => {
