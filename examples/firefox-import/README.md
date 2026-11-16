@@ -64,8 +64,8 @@ may come out inconsistent, and data from the last few seconds may be missing.
   localStorage (80) and IndexedDB (416), so nothing is reset on the way (R2).
 - Not verified: whether a given site keeps a session alive after it moves to another
   device fingerprint (R6). Sites that bind sessions to the device (Google among them)
-  may ask to sign in again or flag the sign-in. Try it with an account you can afford
-  to re-verify.
+  may ask to sign in again or flag the sign-in. `research/r6-google-session.mjs` runs
+  that check for Google; try it with an account you can afford to re-verify.
 
 A Chromium browser would need a different importer: its cookies are encrypted with a
 key from the system keyring and its localStorage / IndexedDB are LevelDB.
