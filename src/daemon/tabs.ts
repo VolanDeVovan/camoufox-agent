@@ -1,5 +1,5 @@
 // TabRegistry: tab ids, which session owns each tab, each session's active tab.
-import type { Frame, Page } from "playwright-core";
+import type { Dialog, Frame, Page } from "playwright-core";
 import { attachCapture, type ConsoleEntry, type DialogAnswer, type NetEntry } from "./capture.js";
 import type { RunningProfile } from "./profiles.js";
 import type { Daemon, Session } from "./state.js";
@@ -51,6 +51,13 @@ export class Tab {
   label: string | null = null;
   /** Exempt from the idle close. */
   keep = false;
+  /** Agent calls acting on the tab right now, and when the last one ended. */
+  acting = 0;
+  agentAt = 0;
+  /** In a window, a dialog no agent action opened is left for the user to answer. */
+  userAnswers = false;
+  /** Such a dialog, while it may still be open. */
+  pendingDialog: { dialog: Dialog; what: string } | null = null;
   private netListeners = new Set<NetListener>();
   /** Calls on one tab run one at a time. */
   queue: Promise<unknown> = Promise.resolve();
@@ -62,6 +69,29 @@ export class Tab {
     owner: string | null,
   ) {
     this.owner = owner;
+  }
+
+  /** Run an agent action on the tab: a dialog it opens is the agent's to answer. */
+  async act<T>(fn: () => Promise<T>): Promise<T> {
+    this.acting++;
+    try {
+      return await fn();
+    } finally {
+      this.acting--;
+      this.agentAt = Date.now();
+    }
+  }
+
+  /** Did an agent action open a dialog appearing now (one in flight, or one that just ended)? */
+  agentActing(): boolean {
+    return this.acting > 0 || Date.now() - this.agentAt < 2000;
+  }
+
+  /** Is the dialog left to the user still open? A page with an open dialog answers no script. */
+  async dialogOpen(): Promise<boolean> {
+    if (!this.pendingDialog) return false;
+    if ((await evalWithin<number>(this.page, "1", 700)) !== undefined) this.pendingDialog = null;
+    return !!this.pendingDialog;
   }
 
   pushEvent(kind: TabEvent["kind"], text: string): TabEvent {
@@ -139,6 +169,7 @@ export class TabRegistry {
     const existing = this.byPage.get(page);
     if (existing) return existing;
     const tab = new Tab(this.nextId++, page, profile, owner);
+    tab.userAnswers = !this.daemon.config.headless;
     this.tabs.set(tab.id, tab);
     this.byPage.set(page, tab);
     attachCapture(tab);

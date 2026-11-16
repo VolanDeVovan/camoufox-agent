@@ -153,7 +153,7 @@ tool("fetch_markdown", async (call, args) => {
     const { tab, created } = await daemon.tabs.open(session, profile);
     if (created) session.notices.push(created);
     try {
-      await goto(tab, url);
+      await tab.act(() => goto(tab, url));
       html = (await evalWithin<string>(tab.page, "document.documentElement.outerHTML", 10000)) ?? "";
       finalUrl = tab.url();
     } finally {

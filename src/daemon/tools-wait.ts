@@ -73,6 +73,18 @@ tool("handle_dialog", async (call, args) => {
   if (typeof args.accept !== "boolean") throw new ToolError("handle_dialog needs accept: true / false (or clear: true).");
   const answer = { accept: args.accept, promptText: typeof args.prompt_text === "string" ? args.prompt_text : undefined };
   const how = `${answer.accept ? "accepted" : "dismissed"}${answer.promptText !== undefined ? ` with text ${JSON.stringify(answer.promptText)}` : ""}`;
+  // A dialog left to the user and still open is answered now.
+  if (!args.standing && (await tab.dialogOpen())) {
+    const { dialog, what } = tab.pendingDialog!;
+    tab.pendingDialog = null;
+    try {
+      if (answer.accept) await dialog.accept(dialog.type() === "prompt" ? answer.promptText ?? dialog.defaultValue() : undefined);
+      else await dialog.dismiss();
+    } catch {
+      return text(`Tab ${tab.id}: the ${what} was already answered (by the user).`);
+    }
+    return text(`Tab ${tab.id}: the open ${what} was ${how}.`);
+  }
   if (args.standing) {
     tab.dialogRule = answer;
     return text(`Tab ${tab.id}: every alert / confirm / prompt will be ${how} until handle_dialog(clear=true).`);

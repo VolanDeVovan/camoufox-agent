@@ -21,7 +21,7 @@ export const waitTools: ToolDef[] = [
   {
     name: "handle_dialog",
     description:
-      "Arm the answer for the next alert / confirm / prompt in a tab, or set a standing rule. Without it every dialog is dismissed (and the reply of the action that caused it says so). Arm it before the action that opens the dialog.",
+      "Arm the answer for the next alert / confirm / prompt your action opens in a tab, or set a standing rule. Without it such a dialog is dismissed (and the reply of the action that caused it says so). Arm it before the action that opens the dialog. A dialog no agent action opened is left to the user; while it is open, handle_dialog answers it.",
     shape: {
       accept: z.boolean().optional().describe("true: OK / accept. false: Cancel / dismiss."),
       prompt_text: z.string().optional().describe("Text to enter into a prompt()."),

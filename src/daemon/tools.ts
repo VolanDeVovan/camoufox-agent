@@ -33,11 +33,16 @@ export function tool(name: string, handler: Handler, deadline?: number | ((args:
 /** Run a handler body with the tab's calls serialized. */
 export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>): Promise<T> {
   const tab = await call.daemon.tabs.resolve(call.session, tabId);
-  const run = tab.queue.then(() => {
+  const run = tab.queue.then(async () => {
     // The deadline counts the wait in the queue too. A call already reported as
     // failed must not act later: the agent would repeat it and the action happen twice.
     if (call.cancelled) throw new ToolError("cancelled: the call's deadline passed while it waited for the tab.");
-    return body(tab);
+    if (await tab.dialogOpen()) {
+      throw new ToolError(
+        `Tab ${tab.id} shows a ${tab.pendingDialog!.what} that no agent action opened, so it is left to the user; the page does nothing until it is answered. Wait for the user, or answer it with handle_dialog(accept=...) when the answer is clearly what the user wants.`,
+      );
+    }
+    return tab.act(() => body(tab));
   });
   let release: NodeJS.Timeout;
   tab.queue = Promise.race([run.catch(() => {}), new Promise((r) => (release = setTimeout(r, QUEUE_HOLD_MS)))]).finally(() => clearTimeout(release));
@@ -121,7 +126,7 @@ tool("tabs_create", async (call, args) => {
   let navError = "";
   if (args.url) {
     try {
-      await goto(tab, args.url);
+      await tab.act(() => goto(tab, args.url));
     } catch (e: any) {
       navError = String(e?.message || e);
     }

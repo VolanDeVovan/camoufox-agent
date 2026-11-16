@@ -46,7 +46,13 @@ and the reply names what covers it.
 
 - Typing pastes by default; `per_key: true` types key by key with human-like delays.
   Cursor movement is humanized by Camoufox itself.
-- A dialog is dismissed unless `handle_dialog` armed an answer first.
+- A dialog an agent action opened (one in flight, or one that ended under 2 s ago) is
+  dismissed unless `handle_dialog` armed an answer first, and the action's reply says
+  so. Any other dialog (the user clicked, or the page opened it on its own) is left on
+  screen for the user in a visible window; an acting call on the tab meanwhile is
+  refused with what the dialog says, and `handle_dialog` answers it. A page with an open
+  dialog runs no script, which is how the daemon tells it is still open. Headless,
+  every dialog is the agent's.
 - Downloads go to `$XDG_DOWNLOAD_DIR/camoufox-agent/`.
 - Every tool has a deadline; a wedged page answers "did not finish within N s".
 

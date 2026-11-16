@@ -169,11 +169,19 @@ export function attachCapture(tab: Tab): void {
     }
   });
 
-  // Every dialog must be answered, or the page hangs. Without an armed answer the
-  // default is dismiss, and the action that caused it reports that.
+  // A dialog freezes the page until it is answered. One an agent action opened is the
+  // agent's: the armed answer, or dismiss, and the action's reply says so. Any other
+  // (the user clicked, or the page opened it on its own), in a window, is left on screen
+  // for the user to answer; an agent call on the tab meanwhile is told about it.
   page.on("dialog", async (dialog: Dialog) => {
     const type = dialog.type();
     const message = dialog.message();
+    const shown = message.length > 300 ? message.slice(0, 300) + "…" : message;
+    if (tab.userAnswers && !tab.agentActing()) {
+      tab.pendingDialog = { dialog, what: `${type} dialog ${JSON.stringify(shown)}` };
+      tab.pushEvent("dialog", `opened ${type} dialog ${JSON.stringify(shown)}: left to the user (no agent action opened it)`);
+      return;
+    }
     let answer: DialogAnswer;
     let why: string;
     if (type === "beforeunload") {
@@ -194,7 +202,6 @@ export function attachCapture(tab: Tab): void {
       if (answer.accept) await dialog.accept(type === "prompt" ? answer.promptText ?? dialog.defaultValue() : undefined);
       else await dialog.dismiss();
     } catch {}
-    const shown = message.length > 300 ? message.slice(0, 300) + "…" : message;
     const withText = answer.accept && type === "prompt" && answer.promptText !== undefined ? ` with text ${JSON.stringify(answer.promptText)}` : "";
     tab.pushEvent("dialog", `opened ${type} dialog ${JSON.stringify(shown)}: ${why}${withText}`);
   });
