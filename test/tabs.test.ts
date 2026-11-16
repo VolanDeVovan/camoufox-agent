@@ -1,5 +1,6 @@
 // Tabs across sessions and profiles: the core of the daemon model (02, 03, 04).
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { browsersOn, cleanupTemps, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
@@ -119,7 +120,31 @@ test("temp is a throwaway profile", async () => {
   expect(r.isError).toBe(false);
   expect(lastCookie()).toBe("");
   expect(existsSync(join(dir, "temp"))).toBe(false);
-  const [pid] = browsersOn("/tmp/camoufox-agent-temp-");
+  const [pid] = browsersOn(join(tmpdir(), "camoufox-agent-temp-"));
   expect(pid).toBeGreaterThan(0);
   await a.call("close_browser", { profile: "temp" });
+});
+
+test("a profile held by a process that is not ours is an error that says so", async () => {
+  // Firefox marks a profile in use with a `lock` symlink naming the holder's pid.
+  mkdirSync(join(dir, "held"));
+  symlinkSync(`127.0.1.1:+${process.pid}`, join(dir, "held", "lock"));
+  const r = await a.call("tabs_create", { profile: "held" });
+  expect(r.isError).toBe(true);
+  expect(r.text).toContain(`Profile "held" is in use by another process (pid ${process.pid})`);
+  expect(browsersOn(join(dir, "held"))).toHaveLength(0);
+});
+
+test("when a session ends its tabs are closed and the browser stays for the others", async () => {
+  const c = await startSession({ profilesDir: dir });
+  const opened = await c.call("tabs_create", { url: site.base + "/" });
+  const id = Number(opened.text.match(/Opened tab (\d+)/)![1]);
+  await c.close();
+  await sleep(800);
+  expect(browsersOn(join(dir, "default"))).toHaveLength(1);
+  // The tab is gone for everyone: b cannot adopt it as a leftover.
+  const r = await b.call("navigate", { url: site.base + "/", tabId: id });
+  expect(r.isError).toBe(true);
+  expect(r.text).toContain("does not exist");
+  expect((await b.call("tabs_context")).text).toContain("/whoami");
 });
