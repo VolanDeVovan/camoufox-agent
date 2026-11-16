@@ -36,8 +36,11 @@ its own tabs.
   network) is forgotten. tabs_context lists free tabs; a session takes one by passing
   its tabId. Sessions have no identity that survives a restart, so the agent picks the
   tab by what it shows.
-- A tab no agent has used for an hour is closed, whoever owns it; an owner is told on
-  its next call. `CAMOUFOX_AGENT_TAB_IDLE_MS` changes the hour. A browser whose last
+- A tab nobody has used for an hour is closed, whoever owns it; an owner is told on
+  its next call. `CAMOUFOX_AGENT_TAB_IDLE_MS` changes the hour. Use is an agent's call
+  on the tab or the user's input in it: listeners in the isolated world (invisible to
+  the page) note the last trusted pointer, key or wheel event of the top document, and
+  the sweep reads it once a minute. Input inside an iframe is not seen. A browser whose last
   tab goes is closed with it, and with no session connected a browser holding nothing
   but blank tabs is closed at once.
 - The daemon lives while it has a session or a browser; with neither it exits a few

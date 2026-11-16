@@ -3,6 +3,7 @@ import type { Frame, Page } from "playwright-core";
 import { attachCapture, type ConsoleEntry, type DialogAnswer, type NetEntry } from "./capture.js";
 import type { RunningProfile } from "./profiles.js";
 import type { Daemon, Session } from "./state.js";
+import { evalWithin } from "./navigation.js";
 import { maskUrl } from "./redact.js";
 import { ToolError } from "./state.js";
 
@@ -96,6 +97,24 @@ export class Tab {
   }
 }
 
+/**
+ * The user's input counts as use of a tab, like an agent's call. Listeners in the
+ * isolated world (the page cannot see them) note the last trusted pointer, key or wheel
+ * event; the expression installs them when missing and answers how many ms ago that
+ * was, or -1. A page cannot fake input to keep itself open: untrusted events are ignored.
+ */
+const INPUT_JS = `(function () {
+  var s = window.__cfaInput;
+  if (!s) {
+    s = window.__cfaInput = { t: 0 };
+    var note = function (e) { if (e.isTrusted) s.t = Date.now(); };
+    ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"].forEach(function (type) {
+      addEventListener(type, note, { capture: true, passive: true });
+    });
+  }
+  return s.t ? Date.now() - s.t : -1;
+})()`;
+
 const OPEN_TAB_JS = `(function () { window.open("about:blank", "_blank", "noopener,noreferrer"); return 1; })()`;
 
 export class TabRegistry {
@@ -120,6 +139,11 @@ export class TabRegistry {
     this.byPage.set(page, tab);
     attachCapture(tab);
     page.on("close", () => this.onClosed(tab));
+    // A new document has no listeners yet. (load / domcontentloaded are not reliable in Camoufox.)
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) setTimeout(() => void this.userInput(tab), 1000);
+    });
+    void this.userInput(tab);
     return tab;
   }
 
@@ -409,6 +433,7 @@ export class TabRegistry {
     if (this.sweeping) return;
     this.sweeping = true;
     try {
+      await Promise.all([...this.tabs.values()].map((t) => this.userInput(t)));
       const now = Date.now();
       for (const tab of [...this.tabs.values()]) {
         if (this.tabs.get(tab.id) !== tab || tab.profile.closing || now - tab.lastUsed < this.daemon.tabIdleMs) continue;
@@ -424,6 +449,13 @@ export class TabRegistry {
     } finally {
       this.sweeping = false;
     }
+  }
+
+  /** Fold the user's last input in the tab into lastUsed (and install the listeners). */
+  private async userInput(tab: Tab): Promise<void> {
+    if (tab.page.isClosed()) return;
+    const ago = await evalWithin<number>(tab.page, INPUT_JS, 1000);
+    if (typeof ago === "number" && ago >= 0) tab.lastUsed = Math.max(tab.lastUsed, Date.now() - ago);
   }
 
   private async expire(tab: Tab): Promise<void> {
