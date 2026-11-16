@@ -1,7 +1,7 @@
 // What the MCP server tells the agent on connect (the `instructions` of the
 // initialize reply). The package ships no skill: these rules are all an agent needs,
 // and they travel with the server.
-export const INSTRUCTIONS = `A browser of your own: an anti-detect Firefox (Camoufox) with persistent profiles that keep logins, in a visible window that never takes the user's keyboard focus. Use it for anything that needs a real browser or a logged-in session. The tools are shaped like Claude in Chrome's.
+export const INSTRUCTIONS = `A browser of your own: an anti-detect Firefox (Camoufox) with persistent profiles that keep logins, in a visible window that never takes the user's keyboard focus. Use it for anything that needs a real browser or a logged-in session.
 
 Start: tabs_context, then tabs_create(url) or navigate(url). There is no launch step; the browser starts on first use (the very first use on a machine downloads it: a tool then answers with the progress - wait and call again). Call read_page after every navigation and after anything that changed the page.
 

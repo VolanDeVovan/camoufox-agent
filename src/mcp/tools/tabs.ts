@@ -14,7 +14,7 @@ export const tabTools: ToolDef[] = [
   {
     name: "tabs_create",
     description:
-      'Open a new tab and make it active. `profile` picks the identity (default: the default profile); the profile\'s browser is launched if it is not running, and a name that does not exist yet is created (the reply says so and lists existing names). A profile is an identity (a set of logins), not a task: use the default one unless you need another account; call find_session(site) before logging in anywhere. "temp" is a throwaway profile.',
+      'Open a new tab and make it active. `profile` picks the identity (default: the default profile); the profile\'s browser is launched if it is not running, and a name that does not exist yet is created (the reply says so and lists existing names). Profiles are identities, not tasks (see find_session); "temp" is a throwaway one.',
     shape: {
       url: z.string().optional().describe("Address to open. Omitted: a blank tab."),
       profile: profileArg.describe("Profile (identity) to open the tab in."),

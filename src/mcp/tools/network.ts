@@ -59,7 +59,7 @@ export const networkTools: ToolDef[] = [
       phase: z.enum(["request", "response"]).optional().describe('"response" (default): the response has finished. "request": the request was sent.'),
       since: z.number().int().min(0).optional().describe("Accept requests with an id greater than this (0: any captured request)."),
       timeout_s: z.number().min(0.1).max(120).optional().describe("Seconds to wait (default 15)."),
-      max_chars: z.number().int().positive().optional(),
+      max_chars: z.number().int().positive().optional().describe("Cap per body (default 8000)."),
       reveal_values: revealValues,
       tabId,
     },

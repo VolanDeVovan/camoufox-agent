@@ -20,7 +20,7 @@ export const readTools: ToolDef[] = [
   {
     name: "find",
     description:
-      "Find elements by literal text: a case-insensitive substring of the name, visible text, label, placeholder, value or link target; optionally only a given role. Returns every match with a ref (text and headings included, so they can be clicked or scrolled to). Unlike Claude in Chrome's find this is not natural-language search.",
+      "Find elements by literal text: a case-insensitive substring of the name, visible text, label, placeholder, value or link target; optionally only a given role. Returns every match with a ref (text and headings included, so they can be clicked or scrolled to). Not a semantic search: look for words that are on the page.",
     shape: {
       query: z.string().optional().describe("Text to look for."),
       role: z.string().optional().describe("Only this role: button, link, textbox, checkbox, radio, combobox, heading, text, image, tab, menuitem, ..."),

@@ -19,7 +19,6 @@ export const computerTools: ToolDef[] = [
       "- screenshot: the tab's viewport as an image, sized for you (`scale` 0.1-1 shrinks it further). Coordinates you pass afterwards are in this image's pixels.",
       "- zoom: `region` [x0, y0, x1, y1] of the last screenshot at full detail, for reading small text.",
       "- wait: `duration` seconds (at most 30).",
-      "Input looks human by itself (cursor paths, paste, key rhythm); there is nothing to enable.",
     ].join("\n"),
     shape: {
       action: z.enum(["left_click", "right_click", "double_click", "triple_click", "type", "key", "scroll", "scroll_to", "left_click_drag", "hover", "screenshot", "zoom", "wait"]),
@@ -78,8 +77,8 @@ export const computerTools: ToolDef[] = [
     description:
       "Resize a profile's window so that the page area has the given size in CSS pixels. A tiling window manager may refuse; the reply gives the size actually in effect.",
     shape: {
-      width: z.number().int().min(200).max(7680),
-      height: z.number().int().min(200).max(4320),
+      width: z.number().int().min(200).max(7680).describe("Page area width in CSS pixels."),
+      height: z.number().int().min(200).max(4320).describe("Page area height in CSS pixels."),
       tabId,
     },
   },
