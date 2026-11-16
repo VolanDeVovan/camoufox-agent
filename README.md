@@ -42,6 +42,10 @@ camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 `CAMOUFOX_EXECUTABLE_PATH` points at a Camoufox binary of your own instead of the
 downloaded one.
 
+With Nix, `nix build` (or the flake's `packages.default` in your own flake) gives the
+same binary with the browser pinned in the store, so nothing is downloaded at run
+time. Nix is optional; nothing else needs it.
+
 That is the whole setup. The server tells the agent how to use the browser itself
 (MCP server instructions plus tool descriptions); there is no skill to install.
 
@@ -87,7 +91,9 @@ Browsers are headed by default so you can watch and take over. The window is ope
 without focus and the agent never activates it; on Wayland the tab the agent works on
 is shown in the window (selecting a tab there neither focuses nor raises it).
 
-A compositor may still focus any new toplevel. The app-id is `camoufox`; for niri:
+A compositor may still focus a new toplevel when it appears, and niri does. On niri
+the daemon hands focus straight back, but a keystroke can land in the new window in
+between; this rule prevents it altogether (the app-id is `camoufox`):
 
 ```kdl
 window-rule {
@@ -96,7 +102,8 @@ window-rule {
 }
 ```
 
-Rendering keeps going while the window is hidden or on another workspace.
+Rendering keeps going while the window is hidden or on another workspace. F12 opens
+Firefox DevTools in a window of their own.
 
 ## Tools
 

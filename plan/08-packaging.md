@@ -42,10 +42,13 @@ Nix is how the owner develops and installs it, kept to the side:
 - `flake.nix` at the repo root provides `nix develop` (Node 22, pnpm, SQLite) as one
   convenient dev environment, not a required one. On NixOS the downloaded Camoufox
   binary runs through nix-ld.
-- Later, the same flake exports `packages.default` (`buildNpmPackage`, with the
-  browser as a fixed-output derivation passed through `CAMOUFOX_EXECUTABLE_PATH`) so
-  the owner can install and configure it from their NixOS flake. That is an extra
-  output, never the only way to get a working build.
+- The same flake exports `packages.default`: the package built with pnpm from the
+  lockfile (`fetchPnpmDeps`), wrapped so that `CAMOUFOX_EXECUTABLE_PATH` defaults to
+  `packages.browser`, the Camoufox build paired with the pinned launcher as a
+  fixed-output download. Installed this way nothing is downloaded at run time. That
+  is an extra output, never the only way to get a working build. Bumping the launcher
+  means bumping `browserVersion` and its hash in `flake.nix`, and the `pnpmDeps` hash
+  whenever the lockfile changes.
 
 ## Agent instructions
 

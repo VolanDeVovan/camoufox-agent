@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
 import { TEMP_PROFILE, validateProfileName } from "../paths.js";
+import { guardFocus } from "./focus.js";
 import { requireBrowser } from "./install.js";
 import { browserPid, foreignLockHolder, launchProfile } from "./launch.js";
 import type { Daemon } from "./state.js";
@@ -122,13 +123,19 @@ export class ProfileManager {
     this.daemon.log(`launching profile ${name} (${dir})`);
     const started = Date.now();
     let context: BrowserContext;
+    // Watching starts now: the window appears, and may be focused, before the launch returns.
+    const focusGuard = await guardFocus(this.daemon.config.headless);
     try {
       context = await launchProfile(dir, this.daemon.config.headless);
     } catch (err) {
+      void focusGuard();
       if (temp) rmSync(dir, { recursive: true, force: true });
       throw err;
     }
     this.daemon.log(`profile ${name} launched in ${Date.now() - started} ms`);
+    void focusGuard().then((times) => {
+      if (times) this.daemon.log(`the compositor focused the new window of ${name}; focus was handed back (${times}x)`);
+    });
     let died = false;
     const early = () => (died = true);
     context.on("close", early);

@@ -60,10 +60,20 @@ window. R4 checks that `window.open` from the isolated world gives a tab, not a 
 
 ## Compositor
 
-Depending on the compositor, a new toplevel may get focus. R4 measures what happens
-with no window rule and finds Camoufox's app-id; the project README then documents an
-optional user-side rule for compositors that need it (niri: `open-focused false` on the
-Camoufox app-id). The project does not depend on it.
+Depending on the compositor, a new toplevel may get focus. R4 measured it with the
+screen awake: niri with no rule focuses a new window, ours included. Nothing in the
+launch asks for that, and only the compositor can prevent it, so the README documents
+the user-side rule (niri: `open-focused false` on app-id `camoufox`), with which focus
+never moves. Without the rule the daemon hands focus back (`focus.ts`): it notes the
+focused window before a launch and, while the launch runs, returns focus to it
+whenever a new window of ours has taken it, within tens of milliseconds. This is
+implemented for niri, the one compositor it could be measured on; elsewhere the rule
+is the user's. A launch can show two windows: the launcher probes the GPU with a
+short-lived window of its own, once per daemon.
+
+After the launch nothing takes focus: opening tabs, following the agent, clicks,
+popups a site opens and screenshots were all sampled every 50 ms with another window
+focused (`research/focus-check.mjs`).
 
 ## Unfocused windows and rendering
 

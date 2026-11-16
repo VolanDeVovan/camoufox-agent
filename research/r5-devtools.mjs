@@ -1,0 +1,33 @@
+// R5: are Firefox DevTools usable in the agent's headed window? Focuses the window, presses
+// F12 (wtype) and saves a screenshot of the window (niri). Needs niri and wtype in PATH.
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import http from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+const out = process.argv[2] || join(tmpdir(), "r5-devtools.png");
+const key = process.argv[3] || "F12";
+const srv = http.createServer((q, s) => { s.setHeader("content-type", "text/html"); s.end(`<title>r5</title><h1>DevTools check</h1><script>addEventListener("keydown", (e) => document.title = "key:" + e.key)</script>`); }).listen(0);
+const profiles = mkdtempSync(join(tmpdir(), "cfa-r5-"));
+const t = new StdioClientTransport({ command: process.execPath, args: ["dist/mcp/server.js", "--profiles-dir", profiles], env: { ...process.env, CAMOUFOX_AGENT_IDLE_MS: "1000" }, stderr: "inherit" });
+const c = new Client({ name: "r5", version: "0" }); await c.connect(t);
+const call = async (name, args = {}) => (await c.callTool({ name, arguments: args })).content.filter((x) => x.type === "text").map((x) => x.text).join("\n");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const niri = (...a) => execFileSync("niri", ["msg", ...a], { encoding: "utf8" });
+const before = JSON.parse(niri("-j", "focused-window"));
+await call("tabs_create", { url: `http://127.0.0.1:${srv.address().port}/` });
+await sleep(2500);
+const win = JSON.parse(niri("-j", "windows")).find((w) => w.app_id === "camoufox");
+niri("action", "focus-window", "--id", String(win.id));
+await sleep(700);
+const args = key.includes("+") ? [...key.split("+").slice(0, -1).flatMap((m) => ["-M", m]), "-k", key.split("+").pop()] : ["-k", key];
+execFileSync("wtype", args);
+await sleep(4000);
+console.log("page saw:", (await call("tabs_context")).match(/"(key:[^"]*|r5)"/)?.[1], "| camoufox windows:", JSON.parse(niri("-j", "windows")).filter((w) => w.app_id === "camoufox").map((w) => w.title));
+niri("action", "screenshot-window", "--id", String(win.id), "--path", out);
+await sleep(1200);
+if (before?.id) niri("action", "focus-window", "--id", String(before.id));
+console.log("screenshot:", out);
+await call("close_browser"); await c.close(); srv.close(); await sleep(1500); rmSync(profiles, { recursive: true, force: true });
