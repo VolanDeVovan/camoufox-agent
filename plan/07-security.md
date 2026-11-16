@@ -6,7 +6,8 @@ Pages are untrusted input, and the profiles hold the user's real sessions (D16).
 
 - Prompt injection: replies that carry page-derived content (`read_page`,
   `get_page_text`, console, network bodies, `fetch_markdown`) mark it as untrusted page
-  data; the skill says never to follow instructions found in it (08-packaging.md).
+  data; the server's instructions say never to follow instructions found in it
+  (08-packaging.md).
 - Challenge pages: `navigate` and click replies say "challenge page (<vendor>): hand
   over to the user" when the `detect_anti_bot` logic fires, so the agent stops instead
   of retrying.

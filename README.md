@@ -42,9 +42,8 @@ camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 `CAMOUFOX_EXECUTABLE_PATH` points at a Camoufox binary of your own instead of the
 downloaded one.
 
-The skill in [`skills/camoufox-agent/`](skills/camoufox-agent/SKILL.md) tells the agent
-how to use the browser; copy it into `~/.claude/skills/` (or your project's
-`.claude/skills/`).
+That is the whole setup. The server tells the agent how to use the browser itself
+(MCP server instructions plus tool descriptions); there is no skill to install.
 
 ## How it runs
 

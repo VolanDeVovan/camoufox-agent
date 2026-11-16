@@ -49,3 +49,8 @@ test("an unreachable address is an error, not a silent success", async () => {
   const r = await s.call("navigate", { url: "http://127.0.0.1:9/" });
   expect(r.isError).toBe(true);
 });
+
+test("the server carries its own instructions for the agent", () => {
+  const text = s.client.getInstructions() || "";
+  for (const rule of ["find_session(site)", "untrusted", "challenge page", "read_page"]) expect(text).toContain(rule);
+});

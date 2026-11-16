@@ -51,7 +51,7 @@ $XDG_DATA_HOME/camoufox-agent/profiles/<name>/     (~/.local/share/... by defaul
 
 ## Rules for the agent
 
-These go into the skill (08-packaging.md).
+These go into the MCP server's instructions (08-packaging.md).
 
 1. Use `default` unless there is a reason not to.
 2. Before logging in somewhere, call `find_session(site)`. A hit is a candidate, not a

@@ -2,7 +2,7 @@
 
 The core mirrors Claude in Chrome's tool set: same names (without the `_mcp` suffix),
 same shapes where they make sense (D8). The model already knows that interface, and the
-claude-in-chrome skill rules carry over almost unchanged. Groups of tools from the
+rules an agent knows from the claude-in-chrome skill carry over almost unchanged. Groups of tools from the
 reference sit on top. It is one fixed set: no flags turn groups on or off (D9).
 
 Claude Code defers MCP tool schemas and loads them through ToolSearch, so the number
@@ -86,7 +86,7 @@ session for the target site (02-profiles.md).
 
 | Tool | Notes |
 |---|---|
-| `detect_anti_bot` | Is this a challenge page, which vendor; the agent hands over to the user (07, skill) |
+| `detect_anti_bot` | Is this a challenge page, which vendor; the agent hands over to the user (07, server instructions) |
 | `fingerprint_audit` | What a page sees, and contradictions in it |
 
 Human-looking input is not a tool group; it is how every action is performed

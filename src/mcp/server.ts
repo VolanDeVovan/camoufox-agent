@@ -8,6 +8,7 @@ import { z } from "zod";
 import { VERSION, defaultProfilesDir, expandHome, validateProfileName, type DaemonConfig } from "../paths.js";
 import type { ToolResult } from "../protocol.js";
 import { DaemonClient } from "./client.js";
+import { INSTRUCTIONS } from "./instructions.js";
 import { allTools } from "./tools/index.js";
 
 const HELP = `camoufox-agent ${VERSION} - a Camoufox browser for coding agents (MCP server over stdio)
@@ -55,7 +56,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   const client = new DaemonClient(parsed.config, parsed.defaultProfile);
-  const server = new McpServer({ name: "camoufox-agent", version: VERSION });
+  const server = new McpServer({ name: "camoufox-agent", version: VERSION }, { instructions: INSTRUCTIONS });
   const schemas = new Map(allTools.map((t) => [t.name, z.object(t.shape)]));
 
   const forward = async (name: string, args: unknown): Promise<ToolResult> => {

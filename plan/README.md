@@ -33,7 +33,7 @@ every browser, so parallel Claude sessions can share a profile.
 | [05-tools.md](05-tools.md) | Every MCP tool; what was left out; gaps vs Claude in Chrome |
 | [06-page-interaction.md](06-page-interaction.md) | `read_page` refs, action replies, human-looking input, Camoufox quirks, dialogs, downloads, deadlines |
 | [07-security.md](07-security.md) | Untrusted page content, cookie scoping, uploads, secret masking |
-| [08-packaging.md](08-packaging.md) | Node package (pnpm), browser download, Nix as an optional dev/install path, the skill |
+| [08-packaging.md](08-packaging.md) | Node package (pnpm), browser download, Nix as an optional dev/install path, agent instructions |
 | [09-research.md](09-research.md) | Questions only a prototype answers, in order |
 | [10-example-firefox-import.md](10-example-firefox-import.md) | Example, not shipped: copying a Firefox container into a profile |
 | [11-testing.md](11-testing.md) | What is worth testing and how; no tests for the sake of tests |
