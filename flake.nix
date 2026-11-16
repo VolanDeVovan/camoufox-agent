@@ -67,9 +67,7 @@
                 "node_modules"
                 "dist"
                 "reference"
-                "research"
                 "test"
-                "plan"
               ]);
           };
 
