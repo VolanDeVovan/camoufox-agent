@@ -168,6 +168,7 @@ async function main(): Promise<void> {
               activeTab: null,
               notices: [],
               lostActive: null,
+              hinted: new Set(),
             };
             sessions.set(session.id, session);
             checkIdle();

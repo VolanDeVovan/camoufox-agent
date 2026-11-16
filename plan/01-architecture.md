@@ -97,4 +97,5 @@ examples/
   The reference uses the older community `camoufox-js` (Apify); we do not.
 - `@modelcontextprotocol/sdk`, `zod`.
 - `node:sqlite` to read stopped profiles' cookies for `find_session`.
+- `tldts` for the registrable domain (eTLD+1) in `find_session`.
 - `impit` for `http_request` / `fetch_markdown` (Firefox TLS fingerprint).

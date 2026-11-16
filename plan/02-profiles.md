@@ -97,9 +97,9 @@ cloudflare.com:
 
 ### Hint in `navigate` / `tabs_create`
 
-Rule 2 relies on the agent remembering. As a safety net, when the target domain has no
-cookies in the current profile and another profile has auth-looking ones, the reply
-gets one extra line:
+Rule 2 relies on the agent remembering. As a safety net, when the current profile has
+no auth-looking cookie for the page's domain and another profile has, the reply gets
+one extra line, once per session, profile and domain:
 
 ```
 Note: golove has cookies for dash.cloudflare.com (CF_Authorization, vses2) —
@@ -112,10 +112,14 @@ The server never switches profiles by itself.
 
 - Running profile (in this or another session): `context.cookies()` from the daemon's
   live browser; a running profile is never read from disk.
-- Stopped profile: its `cookies.sqlite` read with SQLite read-only — immutable mode
-  normally, plain `mode=ro` when a `-wal` file is left over (after a crash, immutable
-  mode would ignore recent writes). Results are cached by file mtime, so the hint costs
-  next to nothing.
+- Stopped profile: its `cookies.sqlite` read with SQLite read-only in immutable mode.
+  When a `-wal` file is left over (after a crash, immutable mode would ignore its
+  recent writes), a private copy of the database and its WAL is read instead, so the
+  profile directory is never written to (plain `mode=ro` would create a `-shm` file
+  in it). Cookies without an expiry are not in `cookies.sqlite`; they come from the
+  session store (`sessionstore.jsonlz4`, or `sessionstore-backups/recovery.jsonlz4`
+  after a crash), decoded from mozlz4. Results are cached by file mtime, so the hint
+  costs next to nothing.
 - localStorage / IndexedDB presence comes from the origin directories under
   `storage/default/`.
 - Excluded: partitioned cookies (`originAttributes` with `partitionKey`, e.g.
@@ -124,12 +128,14 @@ The server never switches profiles by itself.
   Cloudflare.
 - Anti-bot cookies (`cf_clearance`, `__cf_bm`, `_cfuvid`, `_px*`, `datadome`, ...)
   never count as auth-looking.
+- Analytics and consent cookies (`_ga`, `_hj*`, `OptanonConsent`, ...) do not count
+  either.
 - "Auth-looking" is a hint from cookie names (`session`, `sid`, `auth`, `token`,
   `jwt`, `login`, ...). `__Secure-` / `__Host-` prefixes and HttpOnly+Secure do not
   count on their own, since plenty of non-auth cookies have them. Names are always
   shown so the agent judges; values never are.
 - Expired cookies are ignored; a site whose cookies all expired reads
-  "session expired 3 d ago".
+  "session expired 3 d ago". The expiry shown is the auth-looking cookies'.
 - Apps that keep their token in localStorage show "storage yes, cookies none"; the
   agent decides.
 

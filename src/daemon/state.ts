@@ -16,6 +16,8 @@ export interface Session {
   notices: string[];
   /** Set when the active tab went away; the next call says so instead of silently switching. */
   lostActive: string | null;
+  /** Sites the cross-profile hint was already given for, so it is said once. */
+  hinted: Set<string>;
 }
 
 export interface Daemon {
