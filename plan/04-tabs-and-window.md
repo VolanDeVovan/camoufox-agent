@@ -66,7 +66,8 @@ launch asks for that, and only the compositor can prevent it, so the README docu
 the user-side rule (niri: `open-focused false` on app-id `camoufox`), with which focus
 never moves. Without the rule the daemon hands focus back (`focus.ts`): it notes the
 focused window before a launch and, while the launch runs, returns focus to it
-whenever a new window of ours has taken it, within tens of milliseconds. This is
+whenever a new window of ours has taken it. Measured on niri with no rule, sampling
+every 5 ms over three launches: focus sat on the new window for 15 to 29 ms. This is
 implemented for niri, the one compositor it could be measured on; elsewhere the rule
 is the user's. A launch can show two windows: the launcher probes the GPU with a
 short-lived window of its own, once per daemon.

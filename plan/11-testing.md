@@ -15,12 +15,14 @@ test, name what breaks for a user if it fails; if nothing does, do not add it.
 | Action replies: navigated / changed / opened tab / dialog / download / nothing; refusals for disabled, hidden, covered elements | What separates this from raw Playwright (06) | Integration, local fixture pages |
 | Camoufox quirks: navigation after the 5th page, back/forward, wheel, y in [0,1) | Each one silently broke the reference (06) | Integration, regression |
 | `find_session`: live vs on-disk read, partitioned and anti-bot cookies excluded, eTLD+1 matching, leftover `-wal` | Wrong answers send the agent to the wrong profile (02) | Unit (fixture `cookies.sqlite`) + integration |
-| Security: cookies never cross origin on redirects, upload path limits, profile name validation, secrets masked in every tool that can show them | Real sessions are at stake (07) | Unit + integration |
+| Security: cookies never cross origin on redirects, upload path limits, profile name validation, secrets masked in every tool that can show them (`security.test.ts` calls every tool on a page that leaks secrets through every channel) | Real sessions are at stake (07) | Unit + integration |
 | MCP surface: the server starts over stdio, lists its tools, a navigate + read_page round trip works | The package actually works as installed | Smoke |
 
 Not automated: focus and compositor behaviour (04) and rendering of a hidden window
-depend on the desktop; they are checked by hand from a short checklist when that code
-changes.
+depend on the desktop; they are checked by hand when that code changes, with the
+scripts in `research/`: `headed-check.mjs` (one window, follow-the-agent, rendering
+in a background tab, screen coherence), `focus-check.mjs` (does focus ever move; add
+`x11` for Xwayland) and `r5-devtools.mjs`.
 
 ## How
 
