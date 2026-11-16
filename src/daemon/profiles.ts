@@ -52,6 +52,11 @@ export class ProfileManager {
     return this.daemon.config.profilesDir;
   }
 
+  /** Is any browser running or starting? */
+  any(): boolean {
+    return this.entries.size > 0;
+  }
+
   /** Profiles on disk plus running ones (a running `temp` has no directory under the root). */
   list(): { name: string; running: boolean }[] {
     const names = new Set<string>();
@@ -186,6 +191,7 @@ export class ProfileManager {
       );
     }
     if (profile.temp) rmSync(profile.dir, { recursive: true, force: true });
+    this.daemon.checkIdle();
   }
 
   /** Close one browser for everyone. `by` is the session that asked, if any. */
@@ -220,6 +226,7 @@ export class ProfileManager {
     }
     if (this.entries.get(name) === entry) this.entries.delete(name);
     if (profile.temp) rmSync(profile.dir, { recursive: true, force: true });
+    this.daemon.checkIdle();
     return true;
   }
 

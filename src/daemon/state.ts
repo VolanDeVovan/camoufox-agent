@@ -25,6 +25,10 @@ export interface Daemon {
   profiles: ProfileManager;
   tabs: TabRegistry;
   sessions: Map<string, Session>;
+  /** A tab no agent used for this long is closed (CAMOUFOX_AGENT_TAB_IDLE_MS). */
+  tabIdleMs: number;
+  /** Something that keeps the daemon alive went away: exit if nothing is left. */
+  checkIdle(): void;
   log(...args: unknown[]): void;
 }
 

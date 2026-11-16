@@ -100,6 +100,7 @@ const OPEN_TAB_JS = `(function () { window.open("about:blank", "_blank", "noopen
 
 export class TabRegistry {
   private nextId = 1;
+  private sweeping = false;
   private tabs = new Map<number, Tab>();
   private byPage = new WeakMap<Page, Tab>();
 
@@ -235,6 +236,7 @@ export class TabRegistry {
     }
     session.activeTab = tab.id;
     session.lostActive = null;
+    tab.lastUsed = Date.now();
     return { tab, created };
   }
 
@@ -396,6 +398,49 @@ export class TabRegistry {
     const owner = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (owner?.activeTab === tab.id) owner.activeTab = null;
     await tab.page.close().catch(() => {});
+  }
+
+  /**
+   * Close what nobody uses: a tab no agent used for tabIdleMs (its owner, if any, is
+   * told on its next call), and, with no session connected, a browser left with nothing
+   * but blank tabs. The browser of a tab that was its window's last goes with it.
+   */
+  async sweep(): Promise<void> {
+    if (this.sweeping) return;
+    this.sweeping = true;
+    try {
+      const now = Date.now();
+      for (const tab of [...this.tabs.values()]) {
+        if (this.tabs.get(tab.id) !== tab || tab.profile.closing || now - tab.lastUsed < this.daemon.tabIdleMs) continue;
+        await this.expire(tab);
+      }
+      if (this.daemon.sessions.size === 0) {
+        for (const profile of this.daemon.profiles.allRunning()) {
+          if (!profile.closing && this.inProfile(profile).every((t) => t.pristine || t.page.isClosed())) await this.daemon.profiles.close(profile.name, null);
+        }
+      }
+    } catch (e: any) {
+      this.daemon.log("sweep failed:", e?.stack || e);
+    } finally {
+      this.sweeping = false;
+    }
+  }
+
+  private async expire(tab: Tab): Promise<void> {
+    const minutes = Math.round(this.daemon.tabIdleMs / 60000);
+    const what = `Tab ${tab.id} (${tab.profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed: no agent used it for ${minutes >= 1 ? `${minutes} min` : `${this.daemon.tabIdleMs} ms`}.`;
+    const session = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
+    if (session) {
+      if (session.activeTab === tab.id) {
+        session.activeTab = null;
+        session.lostActive = what;
+      } else session.notices.push(what);
+    }
+    this.daemon.log(`tab ${tab.id} (${tab.profile.name}) expired`);
+    const others = tab.profile.context.pages().filter((p) => p !== tab.page && !p.isClosed());
+    // Its window's last tab: the browser goes too (a parked blank tab would only expire next).
+    if (!others.length) await this.daemon.profiles.close(tab.profile.name, session?.id ?? null);
+    else await this.close(tab);
   }
 
   /**

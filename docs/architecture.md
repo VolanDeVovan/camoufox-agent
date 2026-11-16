@@ -36,8 +36,14 @@ its own tabs.
   network) is forgotten. tabs_context lists free tabs; a session takes one by passing
   its tabId. Sessions have no identity that survives a restart, so the agent picks the
   tab by what it shows.
-- After the last session leaves, the daemon waits ten minutes, closes every browser
-  and exits. `CAMOUFOX_AGENT_IDLE_MS` changes the wait.
+- A tab no agent has used for an hour is closed, whoever owns it; an owner is told on
+  its next call. `CAMOUFOX_AGENT_TAB_IDLE_MS` changes the hour. A browser whose last
+  tab goes is closed with it, and with no session connected a browser holding nothing
+  but blank tabs is closed at once.
+- The daemon lives while it has a session or a browser; with neither it exits a few
+  seconds later. A newer version asks it to exit once no session is connected: its
+  browsers close then, free tabs included, so that the new daemon can open the
+  profiles.
 - Browsers are closed on every exit path of the daemon, a kill included.
 - A browser that dies is reported on the next call and relaunched on the next use.
 - `--profiles-dir` and `--headless` are properties of the browsers, so a non-default

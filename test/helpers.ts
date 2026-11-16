@@ -22,12 +22,20 @@ export function tempDir(prefix = "cfa-test-"): string {
 }
 /**
  * Remove the temp directories of a test file. The daemon of a profiles directory
- * outlives its last client for a moment and its browsers write while they close, so
- * the directory is removed only once that daemon is gone.
+ * outlives its last client while free tabs are open, and its browsers write while they
+ * close, so it is stopped (SIGTERM closes its browsers) and the directory is removed
+ * once it is gone.
  */
 export async function cleanupTemps(): Promise<void> {
   const dirs = temps.splice(0);
-  const deadline = Date.now() + 15000;
+  for (const d of dirs) {
+    for (const pid of daemonPids(d)) {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {}
+    }
+  }
+  const deadline = Date.now() + 20000;
   while (Date.now() < deadline && dirs.some((d) => daemonPids(d).length > 0)) await sleep(200);
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 }
@@ -56,7 +64,7 @@ export async function startSession(opts: SessionOptions): Promise<TestSession> {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [SERVER, "--profiles-dir", opts.profilesDir, "--headless", ...(opts.args || [])],
-    env: { ...(process.env as Record<string, string>), XDG_DOWNLOAD_DIR: join(opts.profilesDir, "..downloads"), CAMOUFOX_AGENT_IDLE_MS: "1500", ...(opts.env || {}) },
+    env: { ...(process.env as Record<string, string>), XDG_DOWNLOAD_DIR: join(opts.profilesDir, "..downloads"), ...(opts.env || {}) },
     cwd: opts.cwd,
     stderr: "inherit",
   });

@@ -14,18 +14,18 @@ import { TabRegistry } from "./tabs.js";
 import { deadlines, handlers } from "./tools.js";
 import "./register.js";
 
-function parseArgs(argv: string[]): { config: DaemonConfig; idleMs: number; socket: string } {
+function parseArgs(argv: string[]): { config: DaemonConfig; tabIdleMs: number; socket: string } {
   const config: DaemonConfig = { profilesDir: defaultProfilesDir(), headless: false };
-  let idleMs = Number(process.env.CAMOUFOX_AGENT_IDLE_MS) || 10 * 60 * 1000;
+  let tabIdleMs = Number(process.env.CAMOUFOX_AGENT_TAB_IDLE_MS) || 60 * 60 * 1000;
   let socket = "";
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--profiles-dir") config.profilesDir = resolve(argv[++i]);
     else if (a === "--headless") config.headless = true;
-    else if (a === "--idle-ms") idleMs = Number(argv[++i]);
+    else if (a === "--tab-idle-ms") tabIdleMs = Number(argv[++i]);
     else if (a === "--socket") socket = argv[++i];
   }
-  return { config, idleMs, socket: socket || socketPath(config) };
+  return { config, tabIdleMs, socket: socket || socketPath(config) };
 }
 
 const log = (...args: unknown[]) => console.error(new Date().toISOString(), ...args);
@@ -73,9 +73,11 @@ async function takeLock(lockPath: string): Promise<boolean> {
 }
 
 const DEFAULT_DEADLINE = 30000;
+/** With no session and no browser left, the daemon waits this long (a session may be starting) and exits. */
+const EXIT_GRACE_MS = 5000;
 
 async function main(): Promise<void> {
-  const { config, idleMs, socket } = parseArgs(process.argv.slice(2));
+  const { config, tabIdleMs, socket } = parseArgs(process.argv.slice(2));
   const lockPath = socket + ".lock";
   if (!(await takeLock(lockPath))) {
     log("another daemon holds", lockPath, "- exiting");
@@ -84,7 +86,7 @@ async function main(): Promise<void> {
   ensureDir(config.profilesDir);
 
   const sessions = new Map<string, Session>();
-  const daemon = { config, sessions, log } as Daemon;
+  const daemon = { config, sessions, tabIdleMs, log } as Daemon;
   daemon.tabs = new TabRegistry(daemon);
   daemon.profiles = new ProfileManager(daemon);
 
@@ -117,15 +119,22 @@ async function main(): Promise<void> {
     process.exit(code);
   };
 
+  // The daemon lives while it has a session or a browser. A browser lives while it has
+  // tabs; a tab lives until nobody has used it for tabIdleMs (the sweep closes it).
   const checkIdle = () => {
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = null;
     if (sessions.size > 0 || shuttingDown) return;
+    // A newer version wants the profiles: free tabs are closed with their browsers.
     if (exitWhenIdle) return void shutdown("asked to exit once idle");
+    if (daemon.profiles.any()) return;
     idleTimer = setTimeout(() => {
-      if (sessions.size === 0) void shutdown(`no clients for ${idleMs} ms`);
-    }, idleMs);
+      if (sessions.size === 0 && !daemon.profiles.any()) void shutdown("no sessions and no browsers");
+    }, EXIT_GRACE_MS);
   };
+  daemon.checkIdle = checkIdle;
+  const sweeper = setInterval(() => void daemon.tabs.sweep(), Math.max(200, Math.min(60000, tabIdleMs / 4)));
+  sweeper.unref();
 
   const callTool = async (session: Session, name: string, args: any): Promise<ToolResult> => {
     const handler = handlers[name];
@@ -212,7 +221,7 @@ async function main(): Promise<void> {
       sessions.delete(s.id);
       s.socket = null;
       // Its tabs stay open, free for the user and for later sessions.
-      void daemon.tabs.closeSession(s).finally(checkIdle);
+      void daemon.tabs.closeSession(s).then(() => daemon.tabs.sweep()).finally(checkIdle);
     };
     conn.on("close", gone);
     conn.on("error", gone);
