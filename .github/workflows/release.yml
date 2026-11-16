@@ -1,0 +1,27 @@
+# On a version tag: build the package and attach the tarball to a GitHub release, so it
+# installs with one command and no build step:
+#   npx -y https://github.com/<owner>/camoufox-agent/releases/latest/download/camoufox-agent.tgz
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Unit tests only: the integration tests need the 1.3 GB browser.
+      - run: pnpm vitest run test/redact.unit.test.ts test/sessions.unit.test.ts
+      - run: pnpm pack && cp camoufox-agent-*.tgz camoufox-agent.tgz
+      - run: gh release create "$GITHUB_REF_NAME" camoufox-agent.tgz camoufox-agent-*.tgz --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

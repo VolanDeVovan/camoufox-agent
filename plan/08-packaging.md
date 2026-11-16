@@ -10,8 +10,12 @@ pnpm add -g camoufox-agent    # or: pnpm dlx camoufox-agent / npx camoufox-agent
 camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 ```
 
-That is the intended distribution. The package is not published to npm yet; until it
-is, it is built from a clone and registered by path (README).
+That is the intended distribution. The package is not published to npm yet. Until it
+is, a version tag makes CI (`.github/workflows/release.yml`) attach the built tarball
+to a GitHub release, and `npx -y <release URL>/camoufox-agent.tgz` runs it with no
+build step. Installing the git repository itself (`npx github:...`) is not offered:
+it depends on npm building the package on the user's machine, which npm 11 did not do
+here.
 
 One binary, the MCP server (flags: 02-profiles.md, 04-tabs-and-window.md).
 `engines.node` is `>=22.15` (01-architecture.md, Stack). Registering with Claude Code:

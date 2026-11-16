@@ -29,24 +29,23 @@ Possible next step: converting cookies and sessions from Chrome and other browse
   JavaScript: the Claude in Chrome tool set, plus network bodies, browserless HTTP
   with the profile's cookies, and anti-bot diagnostics (31 tools,
   [`plan/05-tools.md`](plan/05-tools.md)).
-- A visible window per profile that does not take your keyboard focus.
+- A visible window per profile, so you can watch and take over.
 - One daemon per user holds the browsers, so parallel agent sessions share a profile.
 - Every click reports what the page did; secrets are masked in tool output.
 - Challenge pages are detected and handed to you. Nothing solves CAPTCHAs.
 
 ## Install
 
-It is not published to npm yet, so build it from a clone. Needs Node >= 22.15 and pnpm.
+Needs Node >= 22.15. It is not on npm yet; each release has a prebuilt tarball that
+`npx` runs directly:
 
 ```
-git clone https://github.com/VolanDeVovan/camoufox-agent
-cd camoufox-agent
-pnpm install
-pnpm build
-claude mcp add camoufox -- node "$PWD/dist/mcp/server.js"
+claude mcp add camoufox -- npx -y https://github.com/VolanDeVovan/camoufox-agent/releases/latest/download/camoufox-agent.tgz
 ```
 
-With Nix: `nix build`, then register `./result/bin/camoufox-agent`.
+With Nix: `nix run github:VolanDeVovan/camoufox-agent`.
+
+From a clone: `pnpm install && pnpm build`, then register `node dist/mcp/server.js`.
 
 The first tool call that needs a browser downloads Camoufox (about 1.3 GB, once).
 The server tells the agent how to use it; there is no skill to install.
@@ -56,18 +55,6 @@ camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 ```
 
 Profiles live in `~/.local/share/camoufox-agent/profiles/<name>/`.
-
-## The window and focus
-
-On niri a new window gets focus for a moment when a browser starts; the daemon hands
-it straight back. This rule prevents it altogether:
-
-```kdl
-window-rule {
-    match app-id="^camoufox$"
-    open-focused false
-}
-```
 
 ## Development
 
