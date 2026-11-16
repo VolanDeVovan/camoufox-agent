@@ -61,33 +61,10 @@ camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 
 ## Bringing your sessions in
 
-The server has no import tool. A profile is a plain directory that anything may write
-to while its browser is not running, and the two importers in `examples/` are starting
-points for your own scripts, not a fixed workflow. How I use them:
-
-- In my everyday Firefox I keep a container named `camoufox` and sign in there to
-  everything the agent may use. That container is the agent's set of logins, and I
-  manage it in a browser I already have open.
-- A personal Claude Code skill runs a `sync` script before the agent's first browser
-  call of a session. It is a three-line wrapper around
-  [`examples/firefox-import/import.mjs`](examples/firefox-import/):
-
-  ```bash
-  #!/usr/bin/env bash
-  exec node ~/.claude/skills/camoufox/import.mjs \
-    --firefox-profile ~/.config/mozilla/firefox/default --container camoufox \
-    --target ~/.local/share/camoufox-agent/profiles/default --storage "$@"
-  ```
-
-- The skill tells the agent never to close the browser for the sync: the browser is
-  shared by every agent session. If it is running, the sync is skipped and the profile
-  keeps what the last one copied.
-
-Other setups are a few lines of the same kind: import a Chrome profile instead
-([`examples/chrome-import/`](examples/chrome-import/)), fill a second profile for a
-second account, sync on a timer, or limit an import to a few sites with `--domains`.
-The easiest way to get yours is to ask your coding agent to write it, with these
-examples and [docs/profiles.md](docs/profiles.md) as its reference.
+A profile is a plain directory, so sessions you already have can be copied into it.
+We keep a separate Firefox container with the logins meant for the agent, and copy
+it into the agent's profile before each session. [`examples/`](examples/) has
+importers for Firefox and Chrome: ask your coding agent to adapt them to your setup.
 
 Profiles live in `~/.local/share/camoufox-agent/profiles/<name>/`.
 
