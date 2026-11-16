@@ -16,8 +16,6 @@ export const tabId = z
   .optional()
   .describe("Tab to act on, from tabs_context. Omitted: this session's active tab. Pass it always when several agents share the session.");
 
-export const actionSummary = z.string().optional().describe("A few words on what this action does, for the user reading the transcript.");
-
 export const revealValues = z
   .boolean()
   .optional()

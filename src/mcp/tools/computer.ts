@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actionSummary, revealValues, tabId, type ToolDef } from "./defs.js";
+import { revealValues, tabId, type ToolDef } from "./defs.js";
 
 const point = z.array(z.number()).length(2);
 
@@ -36,7 +36,6 @@ export const computerTools: ToolDef[] = [
       region: z.array(z.number()).length(4).optional().describe("zoom: [x0, y0, x1, y1] in pixels of the last screenshot."),
       scale: z.number().min(0.1).max(1).optional().describe("screenshot: shrink further (1 = the automatic size)."),
       duration: z.number().min(0).max(30).optional().describe("wait: seconds."),
-      action_summary: actionSummary,
       reveal_values: revealValues,
       tabId,
     },
@@ -48,7 +47,6 @@ export const computerTools: ToolDef[] = [
     shape: {
       ref: z.string().describe("Field ref from read_page / find."),
       value: z.union([z.string(), z.boolean(), z.number()]).describe("Text, true / false, or the option to select."),
-      action_summary: actionSummary,
       reveal_values: revealValues,
       tabId,
     },
