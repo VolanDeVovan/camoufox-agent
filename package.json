@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "pnpm build && vitest run",
-    "prepublishOnly": "pnpm build"
+    "prepare": "tsc -p tsconfig.json"
   },
   "engines": {
     "node": ">=22.15"
