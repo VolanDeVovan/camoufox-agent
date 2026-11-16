@@ -90,9 +90,15 @@ export class Tab {
 
   /** Is the dialog left to the user still open? A page with an open dialog answers no script. */
   async dialogOpen(): Promise<boolean> {
-    if (!this.pendingDialog) return false;
-    if ((await evalWithin<number>(this.page, "1", 700)) !== undefined) this.pendingDialog = null;
-    return !!this.pendingDialog;
+    const pending = this.pendingDialog;
+    if (!pending) return false;
+    if ((await evalWithin<number>(this.page, "1", 700)) === undefined) return true;
+    // The user answered it. Playwright still counts it as open (it ignores Juggler's
+    // dialogClosed) and fails some calls meanwhile, page.title() among them: handling
+    // it here clears that; Juggler, which no longer has it, refuses, and that is fine.
+    this.pendingDialog = null;
+    await pending.dialog.dismiss().catch(() => {});
+    return false;
   }
 
   /** Drop console, network and events: they belonged to the previous owner. */
@@ -511,7 +517,7 @@ export class TabRegistry {
 
   private async expire(tab: Tab): Promise<void> {
     const minutes = Math.round(this.daemon.tabIdleMs / 60000);
-    const what = `Tab ${tab.id} (${tab.profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed: no agent used it for ${minutes >= 1 ? `${minutes} min` : `${this.daemon.tabIdleMs} ms`}.`;
+    const what = `Tab ${tab.id} (${tab.profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed: nobody used it for ${minutes >= 1 ? `${minutes} min` : `${this.daemon.tabIdleMs} ms`}.`;
     const session = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (session) {
       if (session.activeTab === tab.id) {

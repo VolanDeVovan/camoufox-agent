@@ -50,7 +50,7 @@ test("a tab no agent uses is closed after the idle time, and its owner is told",
       replies += (await s.call("get_page_text")).text;
       await sleep(500);
     }
-    expect(replies).toMatch(new RegExp(`Tab ${idle} \\(default, .*\\?idle\\) was closed: no agent used it`));
+    expect(replies).toMatch(new RegExp(`Tab ${idle} \\(default, .*\\?idle\\) was closed: nobody used it`));
     const ctx = (await s.call("tabs_context")).text;
     expect(ctx).not.toContain("?idle");
     // keep exempts a tab from the idle close.

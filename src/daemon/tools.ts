@@ -65,6 +65,7 @@ async function refuseOnDialog(tab: Tab): Promise<void> {
 }
 
 export async function tabLine(tab: Tab, active: boolean): Promise<string> {
+  await tab.dialogOpen(); // a dialog the user has answered no longer blanks the title
   const title = (await tab.title()).replace(/\s+/g, " ").slice(0, 60);
   const marks = [tab.label ? `label ${JSON.stringify(tab.label)}` : "", tab.keep ? "kept" : ""].filter(Boolean).join(", ");
   return `  ${String(tab.id).padEnd(3)} ${tab.profile.name.padEnd(12)} ${JSON.stringify(title)}  ${maskUrl(tab.url())}${marks ? `   [${marks}]` : ""}${active ? "   <- active" : ""}`;
