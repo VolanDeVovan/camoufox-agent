@@ -3,7 +3,12 @@
 An MCP server that gives coding agents a browser: [Camoufox](https://github.com/daijro/camoufox)
 (anti-detect Firefox) with tools shaped like Claude in Chrome's.
 
-This project was vibe-coded with Claude Code from the spec in [`plan/`](plan/README.md).
+> [!IMPORTANT]
+> This project is vibe-coded: the code was written by Claude Code from the spec in
+> [`plan/`](plan/README.md), with tests but without a line-by-line human review.
+> It drives a browser that holds your real logged-in sessions. Treat it as an
+> experiment, read the code before you trust it, and expect rough edges.
+
 The reference it borrows from is [mcp-camoufox](https://github.com/RobithYusuf/mcp-camoufox).
 
 ## Why
