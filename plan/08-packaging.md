@@ -10,6 +10,9 @@ pnpm add -g camoufox-agent    # or: pnpm dlx camoufox-agent / npx camoufox-agent
 camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 ```
 
+That is the intended distribution. The package is not published to npm yet; until it
+is, it is built from a clone and registered by path (README).
+
 One binary, the MCP server (flags: 02-profiles.md, 04-tabs-and-window.md).
 `engines.node` is `>=22.15` (01-architecture.md, Stack). Registering with Claude Code:
 
