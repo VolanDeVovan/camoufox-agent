@@ -3,70 +3,88 @@
 ## The chain
 
 ```
-Claude Code
-  │  MCP: JSON-RPC over stdio. Claude Code starts the server with the session
-  │  and kills it on exit, whether or not the session ever uses a browser.
-  v
-camoufox-agent mcp            (Node process, one per Claude session)
+Claude Code session A          Claude Code session B
+  │ MCP over stdio               │ MCP over stdio
+  v                              v
+camoufox-agent (MCP server)    camoufox-agent (MCP server)     thin, one per session
+  └──────────────┬───────────────┘
+                 │ unix socket: $XDG_RUNTIME_DIR/camoufox-agent.sock
+                 v
+camoufox-agentd (daemon, one per user)
   │  ProfileManager: profile name → running browser (or none)
-  │  TabRegistry:    flat list of tabs across browsers, the active tab
-  │  camoufox-js:    binary path, fingerprint (CAMOU_CONFIG), prefs
+  │  TabRegistry:    tabs, which session owns each, each session's active tab
+  │  SessionScan:    find_session over running (live) and stopped (sqlite) profiles
+  │  camoufox (npm): binary path, fingerprint (CAMOU_CONFIG), prefs
   │  playwright-core: firefox.launchPersistentContext(profileDir, ...)
   v
 Camoufox process per profile  (Firefox 158 + Camoufox patches)
-  │  Juggler over a pipe — Firefox's automation protocol, runs in an
-  │  isolated world the page cannot see
+  │  Juggler over a pipe — Firefox's automation protocol; Playwright's own
+  │  evaluate/selectors run in an isolated world the page cannot see
   v
-tabs / pages
+windows / tabs / pages
 ```
 
-Separately, with no link to the server at runtime:
+## Why a daemon
 
-```
-camoufox-agent sync [--container X] [--profile NAME]   (CLI, one-shot)
-  reads the user's Firefox profile (read-only) → writes profiles/NAME/
-```
+Firefox lets only one process open a profile. Two Claude sessions that both want
+`default` would otherwise fail on the profile lock, and parallel agents are the normal
+case. So one daemon per user holds every browser, and each session's MCP server is a
+client of it. This mirrors Claude in Chrome, where one browser serves several sessions,
+each in its own tab group.
 
 ## Processes
 
 | Process | Lifetime | Owner |
 |---|---|---|
-| MCP server | Claude Code session | Claude Code |
-| Camoufox, one per profile | First tool call that needs that profile → `close`, server exit, or crash | MCP server |
-| sync | One command | User or agent via Bash |
+| MCP server | The Claude Code session | Claude Code |
+| Daemon | Started by the first MCP server that needs a browser (detached spawn); exits after all clients disconnect and an idle timeout (default 10 min) | Itself |
+| Camoufox, one per profile | First use → `close_browser`, daemon exit, or crash | Daemon |
 
-Two Claude sessions run two servers. They must not open the same profile at once:
-Firefox's profile lock (`parent.lock`) refuses the second. See 02-lifecycle.md.
+- The MCP server starts no browser and no daemon at startup; the first tool call that
+  needs one does (03-lifecycle.md).
+- Socket lock: the daemon takes an exclusive lock file next to the socket, so two MCP
+  servers racing to start it end with one daemon.
+- Protocol: JSON-RPC over the socket, one request per tool call. The MCP server
+  forwards each tool call with its session id; the daemon holds no MCP state.
+- Version check on connect: an MCP server that meets a daemon of another version asks
+  it to exit once idle and starts its own on a versioned socket name.
 
-## Modules
+Shutdown and crash handling: 03-lifecycle.md.
+
+## Source layout
 
 ```
 src/
   mcp/
-    server.ts        MCP wiring, tool registration
-    tools/*.ts       one file per tool group (03-tools.md)
-  browser/
-    profiles.ts      ProfileManager: lazy launch, close, crash handling
-    tabs.ts          TabRegistry: ids, active tab, follow-the-agent
-    launch.ts        camoufox-js options, fixed identity per profile
-    snapshot.ts      ref engine (04-snapshot-and-actions.md)
-    actions.ts       click/fill/press + "what happened" detection
-    capture.ts       console, network, page errors
-  sync/
-    cli.ts           argument parsing, scenarios
-    firefox.ts       read the source profile: containers.json, cookies, storage
-    write.ts         build the target profile
-  paths.ts           XDG paths shared by both halves (the only shared code)
+    server.ts        MCP wiring, tool registration, daemon client
+    tools/*.ts       tool schemas, forward to the daemon (05)
+  daemon/
+    main.ts          socket server, client sessions, idle exit
+    profiles.ts      ProfileManager: lazy launch, close, crash handling (03)
+    tabs.ts          TabRegistry: ids, ownership, active tab per session (04)
+    launch.ts        camoufox launcher options, fixed identity per profile, prefs (03)
+    snapshot.ts      ref engine (06)
+    actions.ts       click/fill/press + "what happened" detection (06)
+    navigation.ts    navigate with Camoufox's quirks (06)
+    capture.ts       console, network, page errors, downloads
+    sessions.ts      find_session + cross-profile hint (02)
+    redact.ts        secret masking (07)
+  paths.ts           profiles root, socket, downloads (02, 06)
+examples/
+  firefox-import/    copy a Firefox container into a profile; not part of the package (10)
 ```
-
-`sync/` and `browser/` never import each other. `paths.ts` is the contract:
-a profile is a directory under `$XDG_DATA_HOME/camoufox-agent/profiles/<name>/`.
 
 ## Stack
 
-- TypeScript on Node 22.
-- `playwright-core` pinned below 1.63 (Camoufox's ceiling; the reference pins <1.61).
-- `camoufox-js` for launch options and fingerprints.
+- TypeScript on Node, pnpm. Node because Playwright is a Node library (its Python
+  binding drives the same Node driver), the MCP SDK is TypeScript-first, Camoufox ships
+  an official npm launcher, and the reference to borrow from is TypeScript.
+- Node >= 22.15 (Camoufox's floor; also what `node:sqlite` needs unflagged).
+- `playwright-core` pinned below 1.63 (Camoufox's ceiling). The reference pins <1.61
+  because of an `isMobile` schema rejection; R3 checks 1.61 / 1.62.
+- `camoufox`, the official npm launcher from the Camoufox repo (`typescript/`, a port of
+  the Python reference launcher), pinned to an exact version (why: 08-packaging.md).
+  The reference uses the older community `camoufox-js` (Apify); we do not.
 - `@modelcontextprotocol/sdk`, `zod`.
-- SQLite for sync: `node:sqlite` (Node 22.5+) to avoid a native addon.
-- No `impit` / browserless HTTP in v1.
+- `node:sqlite` to read stopped profiles' cookies for `find_session`.
+- `impit` for `http_request` / `fetch_markdown` (Firefox TLS fingerprint).
