@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BrowserContext } from "playwright-core";
+import { refEngineReady } from "./snapshot.js";
 
 export const IDENTITY_FILE = "mcp-identity.json";
 
@@ -68,6 +69,8 @@ async function profileFingerprint(profileDir: string, os: string, headless: bool
 }
 
 export async function launchProfile(profileDir: string, headless: boolean): Promise<BrowserContext> {
+  // The ref selector engine has to exist before the context is created (06).
+  await refEngineReady();
   const { firefox } = await import("playwright-core");
   const { launchOptions, NewBrowser } = await import("camoufox");
   const os = HOST_OS[process.platform] || "linux";

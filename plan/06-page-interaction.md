@@ -23,8 +23,11 @@ Playwright selector engine (`selectors.register(...)`), so nothing is written in
 DOM and the page's scripts cannot see it. Reference implementation:
 `reference/mcp-camoufox/src/helpers.ts` (`REF_ENGINE_JS`, `refLocator`, `snapshotPage`).
 
-A ref belongs to one `read_page` of one tab. A stale ref is an error that says
-"call read_page again", never a guess.
+A ref names one element of one tab for as long as that element is in the document:
+reading the page again gives the same element the same ref, and refs are numbered per
+tab and never reused, so a ref from an earlier page cannot name something else. A
+stale ref is an error that says "call read_page again", never a guess. `find` gives
+refs to text and headings too, so they can be clicked or scrolled to.
 
 ## Actions report what happened
 

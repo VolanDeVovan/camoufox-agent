@@ -34,7 +34,7 @@ export class Tab {
   framePrefixes = new WeakMap<Frame, string>();
   frameSeq = 0;
   /** Refs are never reused within a tab, so a stale ref cannot name another element. */
-  refSeq = 0;
+  refSeq = 1;
   blocking: { types: Set<string>; patterns: string[]; handler: any } | null = null;
   closedByAgent = false;
   private netListeners = new Set<NetListener>();
