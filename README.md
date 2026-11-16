@@ -86,6 +86,8 @@ points for your own scripts, not a fixed workflow. How I use them:
 Other setups are a few lines of the same kind: import a Chrome profile instead
 ([`examples/chrome-import/`](examples/chrome-import/)), fill a second profile for a
 second account, sync on a timer, or limit an import to a few sites with `--domains`.
+The easiest way to get yours is to ask your coding agent to write it, with these
+examples and [docs/profiles.md](docs/profiles.md) as its reference.
 
 Profiles live in `~/.local/share/camoufox-agent/profiles/<name>/`.
 
