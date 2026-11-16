@@ -44,6 +44,11 @@ its own tabs.
 
 - One window per profile; new tabs open inside it. Tab ids are numbers, stable for the
   daemon's lifetime and never reused.
+- A tool that needs a tab when the session has none opens a blank one; the session's
+  next tabs_create in that profile takes that tab instead of opening another.
+- A new tab is opened from a page (window.open). A page whose main thread is busy is
+  given up on after 5 s and another is tried; the tab the busy page opens once it is
+  free again is closed.
 - A page tool acts on the session's active tab unless it is given `tabId`.
 - Tabs a site opens belong to the session whose tab opened them. Tabs the user opens
   by hand belong to nobody until a session adopts one by id.

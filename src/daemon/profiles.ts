@@ -24,6 +24,11 @@ export interface RunningProfile {
   expecting: ((page: Page) => void) | null;
   /** The page that tab is being opened from. */
   expectingFrom: Page | null;
+  /**
+   * window.open calls we gave up waiting for, per opener page (its main thread was
+   * busy). Each still opens a blank tab once the page wakes up; that tab is closed.
+   */
+  abandoned: Map<Page, number>;
   /** The page the daemon last selected in this window (follow-the-agent). */
   visible: Page | null;
   /** The last agent action in this browser, to attribute tabs a site opens without an opener. */
@@ -156,6 +161,7 @@ export class ProfileManager {
       opening: Promise.resolve(),
       expecting: null,
       expectingFrom: null,
+      abandoned: new Map(),
       visible: pages[0] ?? null,
       lastAction: null,
       closing: false,

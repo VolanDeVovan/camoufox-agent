@@ -83,8 +83,9 @@ export async function tabsContext(call: Call): Promise<string> {
 
 tool("tabs_context", async (call, args) => {
   if (args.createIfEmpty && !call.daemon.tabs.of(call.session).length && !call.session.lostActive) {
-    const { created } = await call.daemon.tabs.open(call.session, call.session.defaultProfile);
+    const { tab, created } = await call.daemon.tabs.open(call.session, call.session.defaultProfile);
     if (created) call.session.notices.push(created);
+    if (tab.url() === "about:blank") tab.implicit = true;
   }
   return text(await tabsContext(call));
 }, 60000);

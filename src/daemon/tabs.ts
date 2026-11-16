@@ -40,6 +40,8 @@ export class Tab {
   /** Screenshot pixels per CSS pixel in the last screenshot handed to the agent (coordinates are mapped back). */
   shotScale = 1;
   closedByAgent = false;
+  /** Opened blank because a tool needed a tab and the session had none; tabs_create takes it. */
+  implicit = false;
   private netListeners = new Set<NetListener>();
   /** Calls on one tab run one at a time. */
   queue: Promise<unknown> = Promise.resolve();
@@ -122,10 +124,18 @@ export class TabRegistry {
     // The tab we asked for starts blank and comes from the page we opened it from (Juggler
     // reports that page as its opener even with noopener). A popup another page opens
     // at the same moment is not handed to whoever is waiting.
-    if (profile.expecting && (!opener || opener === profile.expectingFrom) && /^(about:blank)?$/.test(page.url())) {
+    const blank = /^(about:blank)?$/.test(page.url());
+    if (profile.expecting && (!opener || opener === profile.expectingFrom) && blank) {
       const resolve = profile.expecting;
       profile.expecting = null;
+      // Any blank tab from that page will do; one of the abandoned ones may come first,
+      // and then the tab of this call is the one that is closed.
       resolve(page);
+      return;
+    }
+    // A tab we asked a busy page for and stopped waiting for: nobody wants it.
+    if (opener && blank && this.settle(profile, opener)) {
+      await page.close().catch(() => {});
       return;
     }
     let parent: Tab | undefined = opener ? this.byPage.get(opener) : undefined;
@@ -140,7 +150,17 @@ export class TabRegistry {
     if (parent) parent.pushEvent("popup", `opened tab ${tab.id}`);
   }
 
+  /** One window.open of ours from `opener` produced its tab; true if we had given up on it. */
+  private settle(profile: RunningProfile, opener: Page): boolean {
+    const late = profile.abandoned.get(opener) ?? 0;
+    if (!late) return false;
+    if (late > 1) profile.abandoned.set(opener, late - 1);
+    else profile.abandoned.delete(opener);
+    return true;
+  }
+
   private onClosed(tab: Tab): void {
+    tab.profile.abandoned.delete(tab.page);
     if (!this.tabs.delete(tab.id)) return;
     const profile = tab.profile;
     if (profile.visible === tab.page) profile.visible = null;
@@ -223,6 +243,14 @@ export class TabRegistry {
       this.select(spare);
       return spare;
     }
+    // So is the blank tab a tool opened for this session when it had none (cookies,
+    // read_page before any tabs_create): otherwise it stays beside the new one.
+    const unused = this.of(session).find((t) => t.implicit && t.profile === profile && !t.page.isClosed() && t.url() === "about:blank");
+    if (unused) {
+      unused.implicit = false;
+      this.select(unused);
+      return unused;
+    }
     // New tabs open beside an existing one, inside the profile's window. Juggler's
     // Browser.newPage always opens a new window, a focus risk each time.
     const own = this.of(session).filter((t) => t.profile === profile);
@@ -238,13 +266,25 @@ export class TabRegistry {
         return this.register(page, profile, session.id);
       }
     }
-    // No page to open from (the window was closed): a new window is the only way.
-    const page = await profile.context.newPage();
+    // No page to open from (the window was closed, or every page is busy): a new window
+    // is the only way. It is expected like any other tab, so the page event does not
+    // register it first as a tab the user opened by hand.
+    const page = await this.expectTab(profile, null, () => profile.context.newPage().then(() => {}), 30000);
+    if (!page) throw new ToolError(`Could not open a tab in profile "${profile.name}".`);
     profile.visible = page;
     return this.register(page, profile, session.id);
   }
 
   private async openBeside(profile: RunningProfile, opener: Page): Promise<Page | null> {
+    // A page with a busy main thread never answers: the wait is on the tab appearing, not on this call.
+    const page = await this.expectTab(profile, opener, () => opener.evaluate(OPEN_TAB_JS).then(() => {}), 5000);
+    // Given up: the call still opens its tab once the page is free again, and that tab is closed.
+    if (!page && !opener.isClosed()) profile.abandoned.set(opener, (profile.abandoned.get(opener) ?? 0) + 1);
+    return page;
+  }
+
+  /** Run `open` and wait for the blank tab it makes (from `opener`, or with none). */
+  private expectTab(profile: RunningProfile, opener: Page | null, open: () => Promise<void>, timeoutMs: number): Promise<Page | null> {
     let timer: NodeJS.Timeout;
     const appeared = new Promise<Page | null>((resolve) => {
       const expecting = (page: Page) => {
@@ -254,12 +294,11 @@ export class TabRegistry {
       timer = setTimeout(() => {
         if (profile.expecting === expecting) profile.expecting = null;
         resolve(null);
-      }, 5000);
+      }, timeoutMs);
       profile.expecting = expecting;
       profile.expectingFrom = opener;
     });
-    // A page with a busy main thread never answers: the wait is on the tab appearing, not on this call.
-    opener.evaluate(OPEN_TAB_JS).catch(() => {});
+    open().catch(() => {});
     return appeared;
   }
 
@@ -310,6 +349,7 @@ export class TabRegistry {
         const { tab: opened, created } = await this.open(session, session.defaultProfile);
         if (created) session.notices.push(created);
         tab = opened;
+        if (tab.url() === "about:blank") tab.implicit = true;
       }
     }
     session.activeTab = tab.id;

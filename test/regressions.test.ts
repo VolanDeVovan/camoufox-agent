@@ -2,11 +2,12 @@
 import { chmodSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { cleanupTemps, fixture, startSession, tempDir, type Fixture, type TestSession } from "./helpers.js";
+import { cleanupTemps, fixture, sleep, startSession, tempDir, type Fixture, type TestSession } from "./helpers.js";
 
 let site: Fixture;
 let s: TestSession;
 let cwd: string;
+let profilesDir: string;
 
 beforeAll(async () => {
   site = await fixture({
@@ -24,7 +25,8 @@ beforeAll(async () => {
     },
   });
   cwd = tempDir("cfa-cwd-");
-  s = await startSession({ profilesDir: tempDir(), cwd });
+  profilesDir = tempDir();
+  s = await startSession({ profilesDir, cwd });
 });
 afterAll(async () => {
   await s.close();
@@ -76,6 +78,27 @@ test("a page with a busy main thread does not block opening tabs or wedge the se
   expect(opened.isError, opened.text).toBe(false);
   expect(Date.now() - started).toBeLessThan(7500);
   expect((await s.call("read_page")).text).toContain("Callback");
+  // Once the busy page wakes up, the tab it was asked for (and given up on) appears;
+  // it is closed, and the tab that was opened instead stays this session's.
+  await sleep(Math.max(0, started + 9000 - Date.now()));
+  const ctx = (await s.call("tabs_context")).text;
+  expect(ctx).not.toContain("about:blank");
+  expect(ctx).not.toContain("opened by hand");
+  expect(ctx).toMatch(/\/callback\s+<- active/);
+});
+
+test("a blank tab a tool opened for a session without tabs is the one tabs_create takes", async () => {
+  const t = await startSession({ profilesDir });
+  try {
+    await t.call("cookies");
+    const opened = await t.call("tabs_create", { url: site.base + "/callback" });
+    expect(opened.isError, opened.text).toBe(false);
+    const ctx = (await t.call("tabs_context")).text;
+    expect(ctx).not.toContain("about:blank");
+    expect(ctx.match(/^\s+\d+\s+default/gm)).toHaveLength(1);
+  } finally {
+    await t.close();
+  }
 });
 
 test("export_har makes an existing file private; cookies domain filter is a domain match", async () => {
