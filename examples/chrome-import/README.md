@@ -13,15 +13,16 @@ macOS; not Windows (see below). No dependencies beyond Node >= 22.15.
 # which profiles does Chrome have?
 node import.mjs --chrome-profile ~/.config/google-chrome --list
 
-# copy the cookies of Chrome's "Default" profile into the agent's "work" profile
+# copy the cookies and localStorage of Chrome's "Default" profile into the agent's "work" profile
 node import.mjs --chrome-profile ~/.config/google-chrome/Default \
-                --target ~/.local/share/camoufox-agent/profiles/work
+                --target ~/.local/share/camoufox-agent/profiles/work --storage
 ```
 
 | Option | Meaning |
 |---|---|
 | `--chrome-profile DIR` | A profile directory (`Default`, `Profile 1`, ...); with `--list`, its user data directory |
 | `--target DIR` | The camoufox-agent profile directory to fill |
+| `--storage` | Also copy localStorage |
 | `--domains a.com,b.org` | Only these sites and their subdomains |
 | `--session-days N` | Lifetime given to cookies that had no expiry (default 30) |
 | `--keyring-app NAME` | The keyring entry to take the key from, when it is not recognised from the path |
@@ -39,12 +40,20 @@ refuses to run while the target's browser is running.
   (`top_frame_site_key`) gets the matching Firefox `partitionKey`.
 - Fingerprint-bound cookies (`cf_clearance`, `__cf_bm`, `_px*`, `datadome`, ...) and
   expired ones are skipped.
+- With `--storage`: localStorage of http(s) origins. Chromium keeps it in one LevelDB
+  (`Local Storage/leveldb`); the script reads it itself (log files, tables, Snappy)
+  and writes one Firefox origin directory per origin: `.metadata-v2`,
+  `ls/data.sqlite` and `ls/usage`. The group in `.metadata-v2` is the registrable
+  domain, from `tldts` when the script runs inside this repo, else the last two labels
+  of the host. `storage.sqlite` is removed so that QuotaManager rebuilds its origin
+  list. An origin the target already has data for is left alone. Storage of embedded
+  third-party frames and of extensions is skipped.
 
-Never copied: history, bookmarks, saved passwords, extensions, settings, the HTTP cache.
+Never copied: IndexedDB, Cache API, history, bookmarks, saved passwords, extensions, settings, the HTTP cache.
 Nothing is written to the Chrome profile, and no cookie value is printed.
 
-Chrome may be running: the database is read through a copy, and only the last few
-seconds of changes can be missing.
+Chrome may be running: the cookie database is read through a copy and the LevelDB
+files as they are, so only the last few seconds of changes can be missing.
 
 ## The key
 
@@ -75,6 +84,9 @@ encryption (`v20`), which only Chrome's own elevated service can undo.
 - Linux, Chrome with GNOME Keyring, cookie database version 24: all 1489 cookies
   decrypted with the host check passing, written into a Camoufox 158 profile (schema
   17). Vercel, Figma and prom.ua opened signed in.
+- localStorage of vercel.com, figma.com and chatgpt.com (173 items, values up to
+  120 KB) read back in Camoufox with every key and full lengths; ChatGPT opened
+  signed in.
 - Not verified: macOS, KWallet, and the browsers other than Chrome; their keyring
   names follow Chromium's naming and may need `--keyring-app`.
 

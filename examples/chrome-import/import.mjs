@@ -5,11 +5,11 @@
 // next to this file.
 //
 //   node import.mjs --chrome-profile ~/.config/google-chrome/Default \
-//                   --target ~/.local/share/camoufox-agent/profiles/work [--dry-run]
+//                   --target ~/.local/share/camoufox-agent/profiles/work [--storage] [--dry-run]
 //
 // Nothing is ever written to the Chrome profile, and no cookie value is printed.
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readlinkSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import { createConnection } from "node:net";
 import { homedir, tmpdir } from "node:os";
@@ -19,7 +19,7 @@ import * as sqlite from "node:sqlite";
 // ---------------------------------------------------------------- arguments
 
 function parseArgs(argv) {
-  const out = { dryRun: false, domains: null, sessionDays: 30 };
+  const out = { dryRun: false, storage: false, domains: null, sessionDays: 30 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const value = () => {
@@ -31,6 +31,7 @@ function parseArgs(argv) {
     else if (a === "--keyring-app") out.keyringApp = value();
     else if (a === "--domains") out.domains = value().split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
     else if (a === "--session-days") out.sessionDays = Number(value());
+    else if (a === "--storage") out.storage = true;
     else if (a === "--dry-run") out.dryRun = true;
     else if (a === "--list") out.list = true;
     else fail(`unknown argument ${a}`);
@@ -343,6 +344,293 @@ async function importCookies(opts, userDataDir, scratch, report) {
   }
 }
 
+// ---------------------------------------------------------------- localStorage
+//
+// Chromium keeps localStorage in one LevelDB (`Local Storage/leveldb`), keyed
+//   "_" + storage key + "\0" + encoded key
+// where the storage key is an origin ("https://example.com"), or, for a third-party
+// frame, "https://embed.com/^0https://top.com". Keys and values start with a byte
+// that names their encoding: 0 UTF-16LE, 1 Latin-1.
+//
+// Firefox keeps one directory per origin, storage/default/https+++example.com/, with
+// a QuotaManager `.metadata-v2` and the data in ls/data.sqlite (+ ls/usage).
+
+function varint(buf, pos) {
+  let v = 0, shift = 0, b;
+  do {
+    b = buf[pos++];
+    v += (b & 0x7f) * 2 ** shift;
+    shift += 7;
+  } while (b & 0x80);
+  return [v, pos];
+}
+
+function snappyDecompress(src) {
+  let [length, p] = varint(src, 0);
+  const out = Buffer.allocUnsafe(length);
+  let op = 0;
+  while (p < src.length) {
+    const tag = src[p++];
+    if ((tag & 3) === 0) { // literal
+      let n = tag >> 2;
+      if (n >= 60) {
+        const bytes = n - 59;
+        n = 0;
+        for (let i = 0; i < bytes; i++) n += src[p++] * 2 ** (8 * i);
+      }
+      n += 1;
+      src.copy(out, op, p, p + n);
+      p += n;
+      op += n;
+      continue;
+    }
+    let n, offset;
+    if ((tag & 3) === 1) {
+      n = ((tag >> 2) & 7) + 4;
+      offset = ((tag >> 5) << 8) | src[p++];
+    } else if ((tag & 3) === 2) {
+      n = (tag >> 2) + 1;
+      offset = src.readUInt16LE(p);
+      p += 2;
+    } else {
+      n = (tag >> 2) + 1;
+      offset = src.readUInt32LE(p);
+      p += 4;
+    }
+    for (let i = 0; i < n; i++, op++) out[op] = out[op - offset]; // copies may overlap
+  }
+  return out.subarray(0, op);
+}
+
+/** The [key, value] pairs of an SSTable block (prefix-compressed keys, restart array at the end). */
+function blockEntries(buf) {
+  const restarts = buf.readUInt32LE(buf.length - 4);
+  const end = buf.length - 4 - 4 * restarts;
+  const out = [];
+  let p = 0, last = Buffer.alloc(0);
+  while (p < end) {
+    let shared, unshared, valueLength;
+    [shared, p] = varint(buf, p);
+    [unshared, p] = varint(buf, p);
+    [valueLength, p] = varint(buf, p);
+    const key = Buffer.concat([last.subarray(0, shared), buf.subarray(p, p + unshared)]);
+    p += unshared;
+    out.push([key, buf.subarray(p, p + valueLength)]);
+    p += valueLength;
+    last = key;
+  }
+  return out;
+}
+
+function tableBlock(file, offset, size) {
+  const raw = file.subarray(offset, offset + size);
+  const compression = file[offset + size];
+  if (compression === 0) return raw;
+  if (compression === 1) return snappyDecompress(raw);
+  throw new Error(`unknown LevelDB block compression ${compression}`);
+}
+
+/** Entries of an .ldb / .sst table: [user key, sequence, type (1 put, 0 delete), value]. */
+function* tableEntries(file) {
+  const footer = file.subarray(file.length - 48);
+  let p = 0, offset, size;
+  [, p] = varint(footer, p); // metaindex handle: not needed
+  [, p] = varint(footer, p);
+  [offset, p] = varint(footer, p);
+  [size, p] = varint(footer, p);
+  for (const [, handle] of blockEntries(tableBlock(file, offset, size))) {
+    const [blockOffset, q] = varint(handle, 0);
+    const [blockSize] = varint(handle, q);
+    for (const [internalKey, value] of blockEntries(tableBlock(file, blockOffset, blockSize))) {
+      const tag = internalKey.readBigUInt64LE(internalKey.length - 8);
+      yield [internalKey.subarray(0, internalKey.length - 8), tag >> 8n, Number(tag & 0xffn), value];
+    }
+  }
+}
+
+/** Entries of a .log file: 32 KiB blocks of records (checksum, length, type) carrying write batches. */
+function* logEntries(file) {
+  const batches = [];
+  let fragments = null;
+  for (let block = 0; block < file.length; block += 32768) {
+    const end = Math.min(block + 32768, file.length);
+    for (let p = block; p + 7 <= end; ) {
+      const length = file.readUInt16LE(p + 4);
+      const type = file[p + 6];
+      if (type === 0) break; // the zero padding of a block, or a preallocated tail
+      const data = file.subarray(p + 7, p + 7 + length);
+      p += 7 + length;
+      if (type === 1) batches.push(data); // FULL
+      else if (type === 2) fragments = [data]; // FIRST
+      else if (type === 3) fragments?.push(data); // MIDDLE
+      else if (type === 4 && fragments) { // LAST
+        fragments.push(data);
+        batches.push(Buffer.concat(fragments));
+        fragments = null;
+      }
+    }
+  }
+  for (const batch of batches) {
+    let sequence = batch.readBigUInt64LE(0);
+    const count = batch.readUInt32LE(8);
+    let p = 12;
+    for (let i = 0; i < count && p < batch.length; i++) {
+      const type = batch[p++];
+      let length;
+      [length, p] = varint(batch, p);
+      const key = batch.subarray(p, p + length);
+      p += length;
+      let value = null;
+      if (type === 1) {
+        [length, p] = varint(batch, p);
+        value = batch.subarray(p, p + length);
+        p += length;
+      }
+      yield [key, sequence++, type, value];
+    }
+  }
+}
+
+/** The live contents of a LevelDB directory: the newest entry of each key, deletions applied. */
+function readLevelDb(dir) {
+  const newest = new Map();
+  for (const name of readdirSync(dir)) {
+    const entries = /\.(ldb|sst)$/.test(name) ? tableEntries : name.endsWith(".log") ? logEntries : null;
+    if (!entries) continue;
+    let file;
+    try {
+      file = readFileSync(join(dir, name));
+    } catch {
+      continue; // compacted away while we were reading
+    }
+    for (const [key, sequence, type, value] of entries(file)) {
+      const k = key.toString("latin1");
+      const seen = newest.get(k);
+      if (!seen || seen.sequence < sequence) newest.set(k, { sequence, type, value: value && Buffer.from(value) });
+    }
+  }
+  const out = new Map();
+  for (const [k, e] of newest) if (e.type === 1) out.set(k, e.value);
+  return out;
+}
+
+/** A Chromium-encoded string: a leading 0 means UTF-16LE, 1 Latin-1. */
+function chromeString(buf) {
+  return buf[0] === 0 ? buf.subarray(1).toString("utf16le") : buf.subarray(1).toString("latin1");
+}
+
+/** QuotaManager's group of an origin: its registrable domain (tldts when it can be loaded). */
+async function groupOf(host) {
+  try {
+    const { getDomain } = await import("tldts");
+    const domain = getDomain(host, { allowPrivateDomains: false });
+    if (domain) return domain;
+  } catch {}
+  if (/^[\d.]+$/.test(host) || host.includes(":") || !host.includes(".")) return host;
+  return host.split(".").slice(-2).join(".");
+}
+
+/**
+ * `.metadata-v2` for an origin of the default context: int64 timestamp (µs), bool
+ * persisted, two uint32 written as Camoufox 158 writes them, then the suffix, group
+ * and origin strings (uint32 length + UTF-8), and a trailing bool (isApp).
+ */
+function originMetadata(group, origin) {
+  const string = (s) => {
+    const bytes = Buffer.from(s, "utf8");
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(bytes.length);
+    return [length, bytes];
+  };
+  const head = Buffer.alloc(17);
+  head.writeBigInt64BE(BigInt(Date.now()) * 1000n, 0);
+  head.writeUInt32BE(1, 9);
+  return Buffer.concat([head, ...string(""), ...string(group), ...string(origin), Buffer.alloc(1)]);
+}
+
+/** Writes one origin's localStorage the way Firefox's LSNG keeps it. */
+function writeFirefoxLocalStorage(dir, origin, items) {
+  const ls = join(dir, "ls");
+  mkdirSync(ls, { recursive: true });
+  const db = new sqlite.DatabaseSync(join(ls, "data.sqlite"));
+  let usage = 0;
+  try {
+    db.exec(`PRAGMA page_size = 4096; PRAGMA auto_vacuum = INCREMENTAL; PRAGMA user_version = 80;
+      CREATE TABLE database( origin TEXT NOT NULL, usage INTEGER NOT NULL DEFAULT 0, last_vacuum_time INTEGER NOT NULL DEFAULT 0, last_analyze_time INTEGER NOT NULL DEFAULT 0, last_vacuum_size INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE data( key TEXT PRIMARY KEY, utf16_length INTEGER NOT NULL, conversion_type INTEGER NOT NULL, compression_type INTEGER NOT NULL, last_access_time INTEGER NOT NULL DEFAULT 0, value BLOB NOT NULL);`);
+    // conversion_type 1: the value is stored as UTF-8; compression_type 0: uncompressed.
+    const insert = db.prepare("INSERT OR REPLACE INTO data (key, utf16_length, conversion_type, compression_type, value) VALUES (?, ?, 1, 0, ?)");
+    db.exec("BEGIN");
+    for (const [key, value] of items) {
+      insert.run(key, value.length, Buffer.from(value, "utf8"));
+      usage += key.length + value.length; // LSNG counts usage in UTF-16 code units
+    }
+    db.prepare("INSERT INTO database (origin, usage) VALUES (?, ?)").run(origin, usage);
+    db.exec("COMMIT");
+  } finally {
+    db.close();
+  }
+  // ls/usage: a magic number and the same usage, so QuotaManager need not open the database.
+  const usageFile = Buffer.alloc(12);
+  usageFile.writeUInt32BE(0x420a420a, 0);
+  usageFile.writeBigUInt64BE(BigInt(usage), 4);
+  writeFileSync(join(ls, "usage"), usageFile);
+}
+
+async function importLocalStorage(opts, report) {
+  const source = join(opts.source, "Local Storage", "leveldb");
+  if (!existsSync(source)) return;
+  const byOrigin = new Map();
+  let thirdParty = 0, otherScheme = 0;
+  for (const [key, value] of readLevelDb(source)) {
+    if (!key.startsWith("_")) continue; // META:, METAACCESS:, VERSION
+    const cut = key.indexOf("\0");
+    const storageKey = key.slice(1, cut);
+    let url;
+    try {
+      url = new URL(storageKey.split("^")[0]);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      otherScheme++; // chrome-extension://, devtools://, ...
+      continue;
+    }
+    if (!domainAllowed(url.hostname, opts.domains)) continue;
+    if (storageKey.includes("^")) {
+      thirdParty++; // partitioned storage of an embedded frame
+      continue;
+    }
+    const name = chromeString(Buffer.from(key.slice(cut + 1), "latin1"));
+    if (!byOrigin.has(url.origin)) byOrigin.set(url.origin, []);
+    byOrigin.get(url.origin).push([name, chromeString(value)]);
+  }
+
+  const root = join(opts.target, "storage", "default");
+  let copied = 0, existing = 0, items = 0;
+  for (const [origin, entries] of byOrigin) {
+    // https://example.com:8443 -> https+++example.com+8443
+    const dir = join(root, origin.replace(/[:/]/g, "+"));
+    if (existsSync(dir)) {
+      existing++; // the target already has data for this origin: left alone
+      continue;
+    }
+    copied++;
+    items += entries.length;
+    if (opts.dryRun) continue;
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, ".metadata-v2"), originMetadata(await groupOf(new URL(origin).hostname), origin));
+    writeFirefoxLocalStorage(dir, origin, entries);
+  }
+  if (copied && !opts.dryRun) {
+    // QuotaManager caches the origin list in storage.sqlite; without it, it rebuilds the list from the directories.
+    for (const f of ["storage.sqlite", "storage.sqlite-wal", "storage.sqlite-shm"]) rmSync(join(opts.target, f), { force: true });
+  }
+  report.push(`localStorage: ${copied} origin(s) copied (${items} items), ${existing} already in the target and left alone` +
+    (thirdParty ? `, ${thirdParty} item(s) of embedded third-party frames skipped` : "") +
+    (otherScheme ? `, ${otherScheme} of extensions and browser pages skipped` : ""));
+}
+
 // ---------------------------------------------------------------- a minimal D-Bus client
 //
 // Just enough of the wire protocol (little endian, EXTERNAL auth, method calls and
@@ -621,10 +909,11 @@ const scratch = mkdtempSync(join(tmpdir(), "chrome-import-"));
 const report = [];
 try {
   await importCookies(opts, userDataDir, scratch, report);
+  if (opts.storage) await importLocalStorage(opts, report);
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
 const name = profiles(userDataDir).find((p) => p.dir === basename(opts.source))?.name;
 console.log(`${opts.dryRun ? "[dry run] " : ""}${opts.source}${name ? ` ("${name}")` : ""} -> ${opts.target}`);
 for (const line of report) console.log("  " + line);
-if (chromeRunning(userDataDir)) console.log("  note: the browser was running; cookies it set in the last seconds may be missing.");
+if (chromeRunning(userDataDir)) console.log("  note: the browser was running; data it wrote in the last seconds may be missing.");

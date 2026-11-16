@@ -24,7 +24,7 @@ Two things are central:
   logged in somewhere.
 - **Importing sessions from Firefox and Chrome.** [`examples/firefox-import/`](examples/firefox-import/)
   copies a Firefox container (cookies, and optionally localStorage / IndexedDB) into
-  a profile; [`examples/chrome-import/`](examples/chrome-import/) copies the cookies of
+  a profile; [`examples/chrome-import/`](examples/chrome-import/) copies the cookies and localStorage of
   a Chrome, Chromium, Brave, Edge, Vivaldi or Opera profile. The agent then uses
   sessions you already have.
 

@@ -58,13 +58,16 @@ Whether a site accepts the moved session depends on the site: with a Google acco
 Gmail opened signed in while the Cloud console asked to verify the sign-in.
 
 [`examples/chrome-import/`](../examples/chrome-import/) does the same for a Chromium
-browser profile (Chrome, Chromium, Brave, Edge, Vivaldi, Opera), cookies only:
+browser profile (Chrome, Chromium, Brave, Edge, Vivaldi, Opera): cookies and,
+optionally, localStorage:
 
 - cookie values are decrypted with the browser's key, read from the Secret Service
   (over D-Bus, without libsecret), KWallet or the macOS Keychain; a wrong key is
   detected by the SHA-256 of the host that Chromium puts in front of each value;
 - times move from microseconds since 1601 to Firefox's units, SameSite "unspecified"
   becomes Firefox's 256, a CHIPS `top_frame_site_key` becomes a `partitionKey`;
+- localStorage is read from Chromium's LevelDB and written as Firefox origin
+  directories (`.metadata-v2`, `ls/data.sqlite`, `ls/usage`), from scratch;
 - Windows is not supported: Chrome's app-bound encryption only opens in Chrome.
 
-Chromium's localStorage and IndexedDB (LevelDB) are not imported.
+Chromium's IndexedDB is not imported.
