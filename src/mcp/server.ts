@@ -58,7 +58,8 @@ async function main(): Promise<void> {
   }
   const client = new DaemonClient(parsed.config, parsed.defaultProfile);
   const server = new McpServer({ name: "camoufox-agent", version: VERSION }, { instructions: INSTRUCTIONS });
-  const schemas = new Map(allTools.map((t) => [t.name, z.object(t.shape)]));
+  // Strict: an unknown argument (a typo, a removed parameter) is an error, not silently dropped.
+  const schemas = new Map(allTools.map((t) => [t.name, z.strictObject(t.shape)]));
 
   const forward = async (name: string, args: unknown): Promise<ToolResult> => {
     try {
@@ -71,7 +72,7 @@ async function main(): Promise<void> {
   for (const def of allTools) {
     server.registerTool(
       def.name,
-      { description: def.description, inputSchema: def.shape, annotations: def.readOnly ? { readOnlyHint: true } : undefined },
+      { description: def.description, inputSchema: schemas.get(def.name)!, annotations: def.readOnly ? { readOnlyHint: true } : undefined },
       async (args: any) => {
         if (def.name === "browser_batch") {
           // Each step is validated against its own tool's schema before anything runs.
@@ -103,7 +104,7 @@ async function main(): Promise<void> {
   const listed = allTools.map((def) => ({
     name: def.name,
     description: def.description,
-    inputSchema: compactSchema(z.toJSONSchema(z.object(def.shape), { io: "input", target: "draft-7" })),
+    inputSchema: compactSchema(z.toJSONSchema(schemas.get(def.name)!, { io: "input", target: "draft-7" })),
     annotations: def.readOnly ? { readOnlyHint: true } : undefined,
   }));
   server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: listed as any }));

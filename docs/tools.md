@@ -10,7 +10,8 @@
 | Storage | `cookies` `web_storage` |
 | Anti-bot | `detect_anti_bot` `fingerprint_audit` |
 
-Every page tool takes an optional `tabId`. Differences from Claude in Chrome: it is the
+Every page tool takes an optional `tabId`. An argument a tool does not take is an
+error, never silently ignored. Differences from Claude in Chrome: it is the
 agent's own browser, `find` is a literal text match, and there is no GIF recording.
 
 `javascript_tool` returns the value of the last expression; a script body with a

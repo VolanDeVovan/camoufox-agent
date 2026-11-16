@@ -23,6 +23,15 @@ test("lists its tools", async () => {
   for (const expected of ["tabs_context", "tabs_create", "tabs_close", "navigate", "close_browser"]) expect(names).toContain(expected);
 });
 
+test("an unknown argument is an error, not silently dropped", async () => {
+  const direct = await s.call("tabs_context", { tab_id: 1 });
+  expect(direct.isError).toBe(true);
+  expect(direct.text).toContain("tab_id");
+  const batched = await s.call("browser_batch", { actions: [{ tool: "tabs_context", args: { tab_id: 1 } }] });
+  expect(batched.isError).toBe(true);
+  expect(batched.text).toContain("Nothing was run");
+});
+
 test("tool schemas carry no noise into the agent's context", async () => {
   // zod's defaults add "$schema" to every tool and +-2^53 bounds to every integer.
   const listed = JSON.stringify((await s.client.listTools()).tools);
