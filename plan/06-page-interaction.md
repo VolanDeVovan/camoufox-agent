@@ -53,7 +53,8 @@ Refusals instead of guesses:
 
 - disabled or hidden element → refused, nothing fired
 - element covered by another → names the covering element
-- several matches for a text lookup → lists them, does not pick one
+- several matches for a text lookup → `find` lists them all with refs; actions take a
+  ref or a coordinate, never a text to look up, so nothing is ever picked for the agent
 
 ## Human-looking input
 

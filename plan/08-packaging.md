@@ -49,7 +49,8 @@ Nix is how the owner develops and installs it, kept to the side:
 
 ## Skill
 
-`skills/camoufox-agent/SKILL.md`, rules in the spirit of the claude-in-chrome skill:
+`skills/camoufox-agent/SKILL.md`, shipped in the package and copied by the user into
+their skills directory; rules in the spirit of the claude-in-chrome skill:
 
 - Use this browser for anything needing a login or a real browser.
 - The profile rules from 02-profiles.md: `default` by default; `find_session(site)`
