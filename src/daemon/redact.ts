@@ -80,6 +80,8 @@ export function maskHeaderValue(name: string, value: string): string {
   if (n === "set-cookie") return maskSetCookie(String(value));
   if (n === "cookie") return maskCookieHeader(String(value));
   if (n === "location" || n === "referer" || n === "content-location") return maskUrl(String(value));
+  // CORS headers have "credentials" in their names and hold no secret.
+  if (n.startsWith("access-control-")) return String(value);
   return isSecretName(n) ? maskedValue(value) : maskTokensInText(String(value));
 }
 

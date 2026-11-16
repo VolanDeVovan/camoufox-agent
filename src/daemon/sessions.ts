@@ -40,7 +40,7 @@ export function registrable(host: string): string {
 // passed a challenge would otherwise "have" the vendor.
 const ANTIBOT = /^(cf_clearance|__cf_bm|_cfuvid|__cflb|__cfruid|cf_chl_.*|_px.*|pxcts|datadome|ak_bmsc|bm_sv|bm_sz|bm_mi|_abck|incap_ses_.*|visid_incap_.*|nlbi_.*|reese84|__ddg.*|aws-waf-token|_GRECAPTCHA)$/i;
 const ANALYTICS = /^(_ga.*|_gid|_gat.*|_gcl_.*|_fbp|_fbc|__utm.*|_hj.*|_pk_.*|_clck|_clsk|mp_.*|ajs_.*|amp_.*|amplitude.*|optimizely.*|intercom-.*|_uetsid|_uetvid|_scid.*|_ttp|_tt_.*|__gads|__gpi|_dd_s|OptanonConsent|OptanonAlertBoxClosed|CookieConsent.*)$/i;
-const AUTH = /sess|(^|[^a-z])v?ses\d*([^a-z]|$)|sid\b|sid$|^sid|auth|token|jwt|login|logged|sso|oauth|remember|identity|credential|account|user_?id|\buid\b|secure.*id|access|refresh/i;
+const AUTH = /sess|(^|[^a-z])v?ses\d*([^a-z]|$)|sid\b|sid$|^sid|auth|token|jwt|login|logged|sso|oauth|remember|identity|credential|account|user_?id|\buid\b|secure.*id/i;
 
 export const isAntiBot = (name: string) => ANTIBOT.test(name);
 export function authLooking(name: string): boolean {

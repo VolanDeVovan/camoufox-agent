@@ -120,7 +120,6 @@ function walkerJs(opts: {
     var r = el.getBoundingClientRect();
     return r.width >= 1 && r.height >= 1;
   }
-  var TEXT_INPUTS = { text: 1, search: 1, email: 1, url: 1, tel: 1, password: 1, number: 1, "": 1, date: 1, time: 1, "datetime-local": 1, month: 1, week: 1, color: 1 };
   var ROLES = { button: 1, link: 1, textbox: 1, searchbox: 1, checkbox: 1, radio: 1, combobox: 1, listbox: 1, option: 1, tab: 1, menuitem: 1,
     menuitemcheckbox: 1, menuitemradio: 1, switch: 1, slider: 1, spinbutton: 1, treeitem: 1, gridcell: 0 };
   function roleOf(el) {
@@ -136,7 +135,7 @@ function walkerJs(opts: {
       if (t === "button" || t === "submit" || t === "reset" || t === "image") return "button";
       if (t === "file") return "file";
       if (t === "range") return "slider";
-      return TEXT_INPUTS[t] ? "textbox" : "textbox";
+      return t === "search" ? "searchbox" : "textbox";
     }
     if (tag === "TEXTAREA") return "textbox";
     if (tag === "SELECT") return "combobox";
@@ -196,7 +195,7 @@ function walkerJs(opts: {
       var v = tag === "INPUT" || tag === "TEXTAREA" ? el.value : (el.isContentEditable ? el.innerText : "");
       if (v) item.value = secret && !opts.reveal ? "••• (" + String(v).length + " chars)" : cut(v, 100);
       var it = (el.getAttribute("type") || "").toLowerCase();
-      if (it && it !== "text") item.inputType = it;
+      if (it && it !== "text" && it !== "search") item.inputType = it;
       var ph = el.getAttribute("placeholder");
       if (ph && clean(ph) !== item.name) item.placeholder = cut(ph, 60);
     } else if (role === "combobox" && tag === "SELECT") {

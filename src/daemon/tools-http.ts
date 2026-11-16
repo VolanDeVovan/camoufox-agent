@@ -175,7 +175,7 @@ tool("fetch_markdown", async (call, args) => {
     how = "fetched without a browser";
   }
   const md = htmlToMarkdown(html, finalUrl);
-  if (md.replace(/^# .*\n?/, "").trim().length < 200 && !args.use_browser && /<script/i.test(html)) {
+  if (md.replace(/^# .*\n?/, "").trim().length < 80 && !args.use_browser && /<script/i.test(html)) {
     return text(untrusted(`${maskUrl(finalUrl)} (${how})`, md || "(no text)") + "\nThe page has almost no text without JavaScript; use_browser=true renders it.");
   }
   const cut = md.length > max ? md.slice(0, max) + `\n\n[truncated at ${max} of ${md.length} chars]` : md;

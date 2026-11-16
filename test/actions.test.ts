@@ -193,8 +193,10 @@ test("wheel scrolls, scroll_to brings a ref into view, and a pointer at y < 1 do
   const r = await s.call("computer", { action: "scroll", scroll_direction: "down", scroll_amount: 5 });
   expect(r.text).toMatch(/scrolled to x=0, y=\d+/);
   expect(Number(await js("window.scrollY"))).toBeGreaterThan(200);
+  expect(await js("document.getElementById('far').getBoundingClientRect().top > innerHeight")).toBe("true");
   await s.call("computer", { action: "scroll_to", ref: refs["Far below"] });
-  expect(Number(await js("window.scrollY"))).toBeGreaterThan(2000);
+  // The viewport's size comes with the profile's device, so "in view" is the check, not a pixel count.
+  expect(await js("(function () { var r = document.getElementById('far').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()")).toBe("true");
   const top = await s.call("computer", { action: "hover", coordinate: [50, 0.5] });
   expect(top.isError).toBe(false);
   expect(await js("1 + 1")).toBe("2");
