@@ -22,11 +22,11 @@ Two things are central:
   logins, kept on disk as a plain Firefox profile directory. The agent creates and
   manages profiles itself, and `find_session(site)` tells it which profile is already
   logged in somewhere.
-- **Importing sessions from Firefox.** [`examples/firefox-import/`](examples/firefox-import/)
+- **Importing sessions from Firefox and Chrome.** [`examples/firefox-import/`](examples/firefox-import/)
   copies a Firefox container (cookies, and optionally localStorage / IndexedDB) into
-  a profile, so the agent can use sessions you already have.
-
-Possible next step: converting cookies and sessions from Chrome and other browsers.
+  a profile; [`examples/chrome-import/`](examples/chrome-import/) copies the cookies of
+  a Chrome, Chromium, Brave, Edge, Vivaldi or Opera profile. The agent then uses
+  sessions you already have.
 
 ## What you get
 
@@ -58,6 +58,34 @@ The server tells the agent how to use it; there is no skill to install.
 ```
 camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 ```
+
+## Bringing your sessions in
+
+The server has no import tool. A profile is a plain directory that anything may write
+to while its browser is not running, and the two importers in `examples/` are starting
+points for your own scripts, not a fixed workflow. How I use them:
+
+- In my everyday Firefox I keep a container named `camoufox` and sign in there to
+  everything the agent may use. That container is the agent's set of logins, and I
+  manage it in a browser I already have open.
+- A personal Claude Code skill runs a `sync` script before the agent's first browser
+  call of a session. It is a three-line wrapper around
+  [`examples/firefox-import/import.mjs`](examples/firefox-import/):
+
+  ```bash
+  #!/usr/bin/env bash
+  exec node ~/.claude/skills/camoufox/import.mjs \
+    --firefox-profile ~/.config/mozilla/firefox/default --container camoufox \
+    --target ~/.local/share/camoufox-agent/profiles/default --storage "$@"
+  ```
+
+- The skill tells the agent never to close the browser for the sync: the browser is
+  shared by every agent session. If it is running, the sync is skipped and the profile
+  keeps what the last one copied.
+
+Other setups are a few lines of the same kind: import a Chrome profile instead
+([`examples/chrome-import/`](examples/chrome-import/)), fill a second profile for a
+second account, sync on a timer, or limit an import to a few sites with `--domains`.
 
 Profiles live in `~/.local/share/camoufox-agent/profiles/<name>/`.
 

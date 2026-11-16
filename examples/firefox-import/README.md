@@ -66,5 +66,4 @@ may come out inconsistent, and data from the last few seconds may be missing.
   verify the sign-in with a passkey. Expect sensitive services to ask for one
   re-verification in the profile's window.
 
-A Chromium browser would need a different importer: its cookies are encrypted with a
-key from the system keyring and its localStorage / IndexedDB are LevelDB.
+For Chrome and other Chromium browsers, see [`chrome-import`](../chrome-import/).

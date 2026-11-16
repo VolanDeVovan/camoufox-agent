@@ -84,4 +84,5 @@ src/
   paths.ts            profiles root, socket, downloads
   protocol.ts         the wire between MCP server and daemon
 examples/firefox-import/   copy a Firefox container into a profile
+examples/chrome-import/    copy a Chromium browser profile's cookies into a profile
 ```
