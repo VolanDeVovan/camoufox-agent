@@ -60,7 +60,8 @@ its own tabs.
 ```
 src/
   mcp/
-    server.ts         MCP wiring, flags
+    server.ts         MCP wiring, flags, the compact tools/list (no "$schema" or
+                      +-2^53 integer bounds in the schemas the agent reads)
     client.ts         daemon client: connect, start the daemon, reconnect
     instructions.ts   the rules the server gives the agent on connect
     tools/*.ts        tool schemas

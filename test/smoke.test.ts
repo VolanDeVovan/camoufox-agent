@@ -23,6 +23,13 @@ test("lists its tools", async () => {
   for (const expected of ["tabs_context", "tabs_create", "tabs_close", "navigate", "close_browser"]) expect(names).toContain(expected);
 });
 
+test("tool schemas carry no noise into the agent's context", async () => {
+  // zod's defaults add "$schema" to every tool and +-2^53 bounds to every integer.
+  const listed = JSON.stringify((await s.client.listTools()).tools);
+  expect(listed).not.toContain("$schema");
+  expect(listed).not.toContain(String(Number.MAX_SAFE_INTEGER));
+});
+
 test("no browser until a tool needs one, then navigate works", async () => {
   const before = await s.call("tabs_context");
   expect(before.text).toContain("(none");

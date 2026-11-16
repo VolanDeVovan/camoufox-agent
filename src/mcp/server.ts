@@ -4,6 +4,7 @@
 import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { VERSION, defaultProfilesDir, expandHome, validateProfileName, type DaemonConfig } from "../paths.js";
 import type { ToolResult } from "../protocol.js";
@@ -96,6 +97,17 @@ async function main(): Promise<void> {
     );
   }
 
+  // The SDK's own tools/list converts every schema with zod's defaults, which adds a
+  // "$schema" line to every tool and +-2^53 bounds to every integer: tokens in the
+  // agent's context that say nothing. Same list, without that noise.
+  const listed = allTools.map((def) => ({
+    name: def.name,
+    description: def.description,
+    inputSchema: compactSchema(z.toJSONSchema(z.object(def.shape), { io: "input", target: "draft-7" })),
+    annotations: def.readOnly ? { readOnlyHint: true } : undefined,
+  }));
+  server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: listed as any }));
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   const bye = () => {
@@ -109,3 +121,17 @@ async function main(): Promise<void> {
 }
 
 void main();
+
+/** A JSON schema without "$schema" and without the safe-integer bounds zod adds to every int. */
+function compactSchema<T>(node: T): T {
+  if (Array.isArray(node)) return node.map(compactSchema) as T;
+  if (!node || typeof node !== "object") return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (k === "$schema") continue;
+    if (k === "minimum" && v === Number.MIN_SAFE_INTEGER) continue;
+    if (k === "maximum" && v === Number.MAX_SAFE_INTEGER) continue;
+    out[k] = compactSchema(v);
+  }
+  return out as T;
+}
