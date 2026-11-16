@@ -31,12 +31,12 @@ it triggered (06-page-interaction.md).
 | `read_page` | `read_page` | `filter: interactive \| all`, `ref_id` for a subtree, `max_chars`, `offset` / `limit` paging; refs in 06 |
 | `find` | `find` | By text, label, placeholder, role; returns every match with refs. Chrome's is natural-language, ours is literal (see Gaps) |
 | `form_input` | `form_input` | `ref`, `value` (string / boolean for checkboxes / option for selects) |
-| `computer` | `computer` | `left_click` `right_click` `double_click` `triple_click` (coordinate **or** ref), `type` (pastes; `per_key: true` types key by key, 06), `key` (+`repeat`), `scroll`, `scroll_to`, `left_click_drag`, `hover`, `screenshot` (+`scale`), `zoom`, `wait` |
+| `computer` | `computer` | `left_click` `right_click` `double_click` `triple_click` (coordinate **or** ref, `modifiers`), `type` (pastes; `per_key: true` types key by key, 06; an optional `ref` is clicked first), `key` (+`repeat`), `scroll`, `scroll_to`, `left_click_drag`, `hover`, `screenshot` (+`scale`), `zoom`, `wait`. Coordinates are in pixels of the last screenshot (06) |
 | `get_page_text` | `get_page_text` | |
-| `javascript_tool` | `javascript_tool` | `world: main` (default, like Chrome) `\| isolated`. The main world needs `main_world_eval: true` at launch and the `mw:` prefix; it cannot return handles. Output is not masked (07) |
+| `javascript_tool` | `javascript_tool` | `world: main` (default, like Chrome) `\| isolated`. The value of the last expression is returned, promises awaited. The main world needs `main_world_eval: true` at launch and the `mw:` prefix; it cannot return handles. Output is not masked (07) |
 | `read_console_messages` | `read_console_messages` | `pattern`, `level`, `clear`; capture on from launch |
 | `read_network_requests` | `read_network_requests` | `pattern`, `since`; capture on from launch |
-| `browser_batch` | `browser_batch` | Sequential, stops at the first error |
+| `browser_batch` | `browser_batch` | Sequential, stops at the first error; every step is validated against its tool's schema before anything runs |
 | `file_upload` | `file_upload` | `ref`, `paths[]` (path limits in 07) |
 | `resize_window` | `resize_window` | Window size; the fingerprint's screen stays larger (04) |
 
@@ -72,7 +72,7 @@ session for the target site (02-profiles.md).
 
 | Tool | Notes |
 |---|---|
-| `wait_for` | Text / selector / URL / "page changed" / network idle; first match wins; timeout is an error |
+| `wait_for` | Text appears / text gone / selector / URL / "page changed" / network idle; first match wins; timeout is an error |
 | `handle_dialog` | Answer for the next alert / confirm / prompt, or a standing rule (06) |
 
 ## Group `storage`

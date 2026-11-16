@@ -433,3 +433,13 @@ export async function pageText(tab: Tab): Promise<{ title: string; text: string 
   if (!raw) throw new ToolError("The page did not answer within 10 s.");
   return JSON.parse(raw);
 }
+
+/**
+ * Call a function given as source (`function (el, arg) {...}`) on a locator's element,
+ * in the isolated world. Playwright only applies real functions to the element; a
+ * string would be evaluated as a bare expression.
+ */
+export function callOn<T = any>(locator: Locator, source: string, arg?: unknown, timeout = 5000): Promise<T> {
+  const fn = new Function("el", "arg", `return (${source})(el, arg);`);
+  return locator.evaluate(fn as any, arg, { timeout }) as Promise<T>;
+}

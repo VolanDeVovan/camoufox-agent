@@ -41,6 +41,11 @@ of:
 - opened dialog "…" and how it was answered (Dialogs, below)
 - nothing happened within 1 s
 
+Focus moving to the clicked element is not the page doing something: it never ends
+the watch early and is only mentioned ("nothing happened within 1 s (focus moved to
+input#q)"). A change is reported once two looks at the page agree, so a reply
+describes the settled state.
+
 The reply also names a download the action started (Downloads, below) and a challenge
 page it landed on (07-security.md).
 
@@ -100,6 +105,17 @@ caused it says so, with the dialog's text.
 `~/Downloads/camoufox-agent/`), not Playwright's temp folder, which is deleted with the
 context. The reply of the action that started a download says
 "downloaded <name> (<size>) to <path>".
+
+## Screenshots and coordinates
+
+`computer screenshot` returns the viewport in CSS pixels, downscaled to what the model
+actually sees (at most 1568 px on the long edge and about 1.15 megapixels; `scale`
+shrinks further). The tab remembers that factor, and every coordinate the agent
+passes afterwards is taken in screenshot pixels and mapped back. Without this, a
+click aimed at a large window lands in the wrong place. Scaling is a small PNG
+decoder / encoder on `node:zlib` (`png.ts`), not a native image dependency. `zoom`
+returns a region at device resolution for reading; its coordinates are not for
+clicking.
 
 ## Deadlines
 

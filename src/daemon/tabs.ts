@@ -36,6 +36,8 @@ export class Tab {
   /** Refs are never reused within a tab, so a stale ref cannot name another element. */
   refSeq = 1;
   blocking: { types: Set<string>; patterns: string[]; handler: any } | null = null;
+  /** Screenshot pixels per CSS pixel in the last screenshot handed to the agent (coordinates are mapped back). */
+  shotScale = 1;
   closedByAgent = false;
   private netListeners = new Set<NetListener>();
   /** Calls on one tab run one at a time. */
