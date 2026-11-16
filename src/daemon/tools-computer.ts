@@ -291,9 +291,9 @@ tool("javascript_tool", (call, args) =>
  * directory and may not leave it (or the system temp directory); anything else must
  * be an absolute path the agent names explicitly. Every path is echoed in the reply.
  */
-export function resolveUploadPath(raw: string, cwd: string): string {
-  if (typeof raw !== "string" || !raw) throw new ToolError("Empty upload path.");
-  if (raw.startsWith("~")) throw new ToolError(`Upload path ${JSON.stringify(raw)}: "~" is not expanded; give an absolute path.`);
+export function resolveLocalPath(raw: string, cwd: string): string {
+  if (typeof raw !== "string" || !raw) throw new ToolError("Empty path.");
+  if (raw.startsWith("~")) throw new ToolError(`Path ${JSON.stringify(raw)}: "~" is not expanded; give an absolute path.`);
   if (isAbsolute(raw)) return resolve(raw);
   const full = resolve(cwd, raw);
   const inside = (base: string) => {
@@ -301,14 +301,14 @@ export function resolveUploadPath(raw: string, cwd: string): string {
     return rel === "" || (!rel.startsWith(".." + sep) && rel !== ".." && !isAbsolute(rel));
   };
   if (!inside(cwd) && !inside(tmpdir())) {
-    throw new ToolError(`Upload path ${JSON.stringify(raw)} leaves the session's working directory (${cwd}). A file outside it must be given as an absolute path.`);
+    throw new ToolError(`Path ${JSON.stringify(raw)} leaves the session's working directory (${cwd}). A file outside it must be given as an absolute path.`);
   }
   return full;
 }
 
 tool("file_upload", (call, args) =>
   onTab(call, args.tabId, async (tab) => {
-    const paths: string[] = (args.paths as string[]).map((p) => resolveUploadPath(p, call.session.cwd));
+    const paths: string[] = (args.paths as string[]).map((p) => resolveLocalPath(p, call.session.cwd));
     for (const p of paths) {
       if (!existsSync(p) || !statSync(p).isFile()) throw new ToolError(`Not a file: ${p}`);
     }

@@ -3,7 +3,7 @@ import { fail, text } from "../protocol.js";
 import { evalWithin } from "./navigation.js";
 import { maskUrl } from "./redact.js";
 import { ToolError } from "./state.js";
-import { onTab, tool } from "./tools.js";
+import { tool, withTab } from "./tools.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -16,7 +16,7 @@ export function urlMatches(url: string, pattern: string): boolean {
 const CHANGE_JS = `(function () { var b = document.body; var t = b ? b.innerText : ""; return location.href + "|" + document.getElementsByTagName("*").length + "|" + t.length + "|" + (function (s) { var x = 5381; for (var i = 0; i < s.length; i++) x = ((x << 5) + x + s.charCodeAt(i)) | 0; return x; })(t); })()`;
 
 tool("wait_for", (call, args) =>
-  onTab(call, args.tabId, async (tab) => {
+  withTab(call, args.tabId, async (tab) => {
     const page = tab.page;
     const timeout = Math.min(120, Math.max(0.1, args.timeout_s ?? 10)) * 1000;
     const wants = ["text", "text_gone", "selector", "url"].filter((k) => typeof args[k] === "string" && args[k]).concat(["page_changed", "network_idle"].filter((k) => args[k] === true));

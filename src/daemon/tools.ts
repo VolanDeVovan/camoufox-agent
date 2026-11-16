@@ -32,6 +32,11 @@ export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab
   return run;
 }
 
+/** For passive tools (reading captures, waiting): the tab, without taking its queue. */
+export async function withTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>): Promise<T> {
+  return body(await call.daemon.tabs.resolve(call.session, tabId));
+}
+
 export async function tabLine(tab: Tab, active: boolean): Promise<string> {
   const title = (await tab.title()).replace(/\s+/g, " ").slice(0, 60);
   return `  ${String(tab.id).padEnd(3)} ${tab.profile.name.padEnd(12)} ${JSON.stringify(title)}  ${tab.url()}${active ? "   <- active" : ""}`;
