@@ -6,7 +6,7 @@ import { createServer, type Server, type Socket } from "node:net";
 import { resolve, sep } from "node:path";
 import { VERSION, defaultProfilesDir, ensureDir, socketPath, type DaemonConfig } from "../paths.js";
 import { readLines, send, fail, type Hello, type Request, type ToolResult } from "../protocol.js";
-import { BrowserNotReady } from "./install.js";
+import { BrowserNotReady, downloading, onDownloadSettled } from "./install.js";
 import { ProfileManager } from "./profiles.js";
 import type { Daemon, Session } from "./state.js";
 import { ToolError } from "./state.js";
@@ -127,12 +127,14 @@ async function main(): Promise<void> {
     if (sessions.size > 0 || shuttingDown) return;
     // A newer version wants the profiles: free tabs are closed with their browsers.
     if (exitWhenIdle) return void shutdown("asked to exit once idle");
-    if (daemon.profiles.any()) return;
+    const busy = () => daemon.profiles.any() || downloading();
+    if (busy()) return;
     idleTimer = setTimeout(() => {
-      if (sessions.size === 0 && !daemon.profiles.any()) void shutdown("no sessions and no browsers");
+      if (sessions.size === 0 && !busy()) void shutdown("no sessions and no browsers");
     }, EXIT_GRACE_MS);
   };
   daemon.checkIdle = checkIdle;
+  onDownloadSettled(checkIdle);
   const sweeper = setInterval(() => void daemon.tabs.sweep(), Math.max(200, Math.min(60000, tabIdleMs / 4)));
   sweeper.unref();
 

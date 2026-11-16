@@ -45,12 +45,14 @@ its own tabs.
   what a tab is for, and both stay with the tab when its session ends. A browser whose last
   tab goes is closed with it, and with no session connected a browser holding nothing
   but blank tabs is closed at once.
-- The daemon lives while it has a session or a browser; with neither it exits a few
-  seconds later. A newer version asks it to exit once no session is connected: its
+- The daemon lives while it has a session, a browser or the browser download; with
+  none it exits a few seconds later. A newer version asks it to exit once no session is connected: its
   browsers close then, free tabs included, so that the new daemon can open the
   profiles.
 - Browsers are closed on every exit path of the daemon, a kill included.
 - A browser that dies is reported on the next call and relaunched on the next use.
+- A browser being closed is not handed out: a call for its profile waits until its
+  process has exited (and let go of the profile), then launches a new one.
 - `--profiles-dir` and `--headless` are properties of the browsers, so a non-default
   combination gets its own daemon. The socket name carries the package version, so
   different versions never talk to each other.

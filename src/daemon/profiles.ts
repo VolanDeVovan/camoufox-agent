@@ -38,9 +38,26 @@ export interface RunningProfile {
   goneNotice: string | null;
 }
 
+/** Wait up to `ms` for a process to be gone. */
+async function exited(pid: number | null, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    if (!pid) return true;
+    try {
+      process.kill(pid, 0);
+    } catch (e: any) {
+      if (e?.code !== "EPERM") return true;
+    }
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 interface Entry {
   promise: Promise<RunningProfile>;
   running: RunningProfile | null;
+  /** Set while the browser is being closed; resolves once it is gone. */
+  closed?: Promise<void>;
 }
 
 export class ProfileManager {
@@ -89,6 +106,8 @@ export class ProfileManager {
   ensure(rawName: string): Promise<{ profile: RunningProfile; created: string | null }> {
     const name = validateProfileName(rawName);
     let entry = this.entries.get(name);
+    // A browser being closed is not handed out: the next one is launched once it is gone.
+    if (entry?.closed) return entry.closed.then(() => this.ensure(name));
     let created: string | null = null;
     if (!entry) {
       const isNew = name !== TEMP_PROFILE && !existsSync(this.dirOf(name));
@@ -104,6 +123,8 @@ export class ProfileManager {
         },
         (err) => {
           if (this.entries.get(name) === fresh) this.entries.delete(name);
+          // Nobody may be left to wait for it: the daemon may have nothing else to live for.
+          queueMicrotask(() => this.daemon.checkIdle());
           throw err;
         },
       );
@@ -181,8 +202,11 @@ export class ProfileManager {
   private onGone(profile: RunningProfile): void {
     const entry = this.entries.get(profile.name);
     if (entry?.running !== profile) return;
-    this.entries.delete(profile.name);
     this.daemon.log(`profile ${profile.name} is gone (${profile.closing ? "closed" : "died"})`);
+    // Closed by us: close() forgets it once the process has exited and let go of the
+    // profile. Forgetting it now would let a launch race the exiting browser.
+    if (profile.closing) return;
+    this.entries.delete(profile.name);
     if (!profile.closing) {
       this.daemon.tabs.dropProfile(
         profile,
@@ -204,8 +228,22 @@ export class ProfileManager {
     } catch {
       return false;
     }
-    if (profile.closing) return true;
+    if (profile.closing) {
+      await entry.closed;
+      return true;
+    }
     profile.closing = true;
+    let done!: () => void;
+    entry.closed = new Promise<void>((r) => (done = r));
+    try {
+      await this.shut(name, entry, profile, by);
+    } finally {
+      done();
+    }
+    return true;
+  }
+
+  private async shut(name: string, entry: Entry, profile: RunningProfile, by: string | null): Promise<void> {
     this.daemon.tabs.dropProfile(
       profile,
       by === null
@@ -213,21 +251,23 @@ export class ProfileManager {
         : `The browser of profile "${name}" was closed by another session (close_browser); your tabs in it are gone. The next use of the profile relaunches it.`,
       by,
     );
+    const pid = browserPid(profile.dir);
     const closed = await Promise.race([profile.context.close().then(() => true, () => true), new Promise<boolean>((r) => setTimeout(() => r(false), 10000))]);
-    if (!closed) {
+    // The connection closes before the process has exited and let go of the profile; a
+    // launch right after would take our own exiting browser for a foreign one.
+    if (!closed || !(await exited(pid, 5000))) {
       // It will not close: kill it, so that it is neither left running nor left holding the profile.
-      const pid = browserPid(profile.dir);
-      this.daemon.log(`profile ${name} did not close within 10 s; killing pid ${pid}`);
+      this.daemon.log(`profile ${name} did not close in time; killing pid ${pid}`);
       if (pid) {
         try {
           process.kill(pid, "SIGKILL");
         } catch {}
+        await exited(pid, 2000);
       }
     }
     if (this.entries.get(name) === entry) this.entries.delete(name);
     if (profile.temp) rmSync(profile.dir, { recursive: true, force: true });
     this.daemon.checkIdle();
-    return true;
   }
 
   async closeAll(): Promise<void> {

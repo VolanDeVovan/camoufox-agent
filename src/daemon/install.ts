@@ -13,6 +13,17 @@ type State =
   | { status: "failed"; error: string };
 
 let state: State = { status: "unknown" };
+const settled = new Set<() => void>();
+
+/** Is the browser being downloaded? The daemon must not exit meanwhile: that kills the download. */
+export function downloading(): boolean {
+  return state.status === "downloading";
+}
+
+/** Call `fn` whenever a download ends, ready or failed. */
+export function onDownloadSettled(fn: () => void): void {
+  settled.add(fn);
+}
 
 export class BrowserNotReady extends Error {}
 
@@ -61,6 +72,7 @@ function startDownload(): void {
   child.on("exit", async (code) => {
     if (code === 0 && (await installedPath())) state = { status: "ready" };
     else state = { status: "failed", error: `camoufox fetch exited with code ${code}: ${tail.replace(/\s+/g, " ").slice(-300)}` };
+    for (const fn of settled) fn();
   });
 }
 

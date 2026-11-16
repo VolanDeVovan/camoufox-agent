@@ -57,6 +57,28 @@ test("a tab no agent uses is closed after the idle time, and its owner is told",
   }
 });
 
+test("a session arriving while the last one's blank browser closes gets a tab at once", async () => {
+  const dir = tempDir();
+  const site = await fixture({ "/": "<title>Next</title>hi" });
+  const a = await startSession({ profilesDir: dir });
+  const b = await startSession({ profilesDir: dir });
+  try {
+    await a.call("tabs_create", {});
+    // b is connected but has made no call; a leaves, leaving a browser with a blank tab.
+    await b.close();
+    const c = await startSession({ profilesDir: dir });
+    await a.close();
+    await sleep(100);
+    const started = Date.now();
+    const r = await c.call("tabs_create", { url: site.base + "/" });
+    expect(r.isError, r.text).toBe(false);
+    expect(Date.now() - started).toBeLessThan(15000);
+    await c.close();
+  } finally {
+    await site.close();
+  }
+});
+
 test("with no session left, a browser holding only blank tabs closes and the daemon exits", async () => {
   const dir = tempDir();
   const s = await startSession({ profilesDir: dir });

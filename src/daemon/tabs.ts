@@ -154,6 +154,7 @@ const OPEN_TAB_JS = `(function () { window.open("about:blank", "_blank", "noopen
 export class TabRegistry {
   private nextId = 1;
   private sweeping = false;
+  private sweepAgain = false;
   private tabs = new Map<number, Tab>();
   private byPage = new WeakMap<Page, Tab>();
 
@@ -209,7 +210,9 @@ export class TabRegistry {
     const byHand = /^about:(newtab|home|privatebrowsing|welcome)/.test(page.url());
     if (!parent && !byHand && profile.lastAction && Date.now() - profile.lastAction.at < 1500) parent = this.byPage.get(profile.lastAction.page);
     if (this.byPage.has(page) || page.isClosed()) return;
-    const tab = this.register(page, profile, parent?.owner ?? null);
+    // A session that has ended owns nothing: a popup its tab opens late is free.
+    const owner = parent?.owner && this.daemon.sessions.has(parent.owner) ? parent.owner : null;
+    const tab = this.register(page, profile, owner);
     profile.visible = page; // Firefox selects a tab a page opens
     if (parent) parent.pushEvent("popup", `opened tab ${tab.id}`);
   }
@@ -351,19 +354,23 @@ export class TabRegistry {
   /** Run `open` and wait for the blank tab it makes (from `opener`, or with none). */
   private expectTab(profile: RunningProfile, opener: Page | null, open: () => Promise<void>, timeoutMs: number): Promise<Page | null> {
     let timer: NodeJS.Timeout;
+    let giveUp!: () => void;
     const appeared = new Promise<Page | null>((resolve) => {
       const expecting = (page: Page) => {
         clearTimeout(timer);
         resolve(page);
       };
-      timer = setTimeout(() => {
+      giveUp = () => {
+        clearTimeout(timer);
         if (profile.expecting === expecting) profile.expecting = null;
         resolve(null);
-      }, timeoutMs);
+      };
+      timer = setTimeout(giveUp, timeoutMs);
       profile.expecting = expecting;
       profile.expectingFrom = opener;
     });
-    open().catch(() => {});
+    // A failed call opens nothing (the browser is closing, the page went away): do not wait for it.
+    open().catch(giveUp);
     return appeared;
   }
 
@@ -385,6 +392,8 @@ export class TabRegistry {
    * blank tab in the default profile when the session has none (lazy launch, 03).
    */
   async resolve(session: Session, tabId?: number | null): Promise<Tab> {
+    // A call still running when its session ended (a long browser_batch) acts no more.
+    if (this.daemon.sessions.get(session.id) !== session) throw new ToolError("The session has ended.");
     let tab: Tab | undefined;
     if (tabId !== undefined && tabId !== null) {
       tab = this.tabs.get(tabId);
@@ -465,7 +474,10 @@ export class TabRegistry {
    * but blank tabs. The browser of a tab that was its window's last goes with it.
    */
   async sweep(): Promise<void> {
-    if (this.sweeping) return;
+    if (this.sweeping) {
+      this.sweepAgain = true;
+      return;
+    }
     this.sweeping = true;
     try {
       await Promise.all([...this.tabs.values()].map((t) => this.userInput(t)));
@@ -474,15 +486,20 @@ export class TabRegistry {
         if (this.tabs.get(tab.id) !== tab || tab.keep || tab.profile.closing || now - tab.lastUsed < this.daemon.tabIdleMs) continue;
         await this.expire(tab);
       }
-      if (this.daemon.sessions.size === 0) {
-        for (const profile of this.daemon.profiles.allRunning()) {
-          if (!profile.closing && this.inProfile(profile).every((t) => t.pristine || t.page.isClosed())) await this.daemon.profiles.close(profile.name, null);
-        }
+      for (const profile of this.daemon.profiles.allRunning()) {
+        // A session may connect while a browser closes: checked for each.
+        if (this.daemon.sessions.size > 0) break;
+        if (!profile.closing && this.inProfile(profile).every((t) => t.pristine || t.page.isClosed())) await this.daemon.profiles.close(profile.name, null);
       }
     } catch (e: any) {
       this.daemon.log("sweep failed:", e?.stack || e);
     } finally {
       this.sweeping = false;
+    }
+    // A sweep asked for while this one ran (a session left) runs now, not at the next tick.
+    if (this.sweepAgain) {
+      this.sweepAgain = false;
+      await this.sweep();
     }
   }
 
