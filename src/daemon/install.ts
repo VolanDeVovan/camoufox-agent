@@ -36,6 +36,10 @@ function launcherCli(): string {
 function startDownload(): void {
   state = { status: "downloading", phase: "starting", percent: null, detail: "" };
   const child = spawn(process.execPath, [launcherCli(), "fetch"], { stdio: ["ignore", "pipe", "pipe"] });
+  // The download must not outlive the daemon.
+  const stop = () => child.kill();
+  process.once("exit", stop);
+  child.once("exit", () => process.removeListener("exit", stop));
   let tail = "";
   const onData = (chunk: Buffer) => {
     const s = chunk.toString("utf8");

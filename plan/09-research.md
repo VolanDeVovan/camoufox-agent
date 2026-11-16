@@ -33,5 +33,6 @@ Measured on NixOS (nix-ld), niri, Node 25.9, `camoufox` 0.5.9 (browser
 | R11 | All four reference quirks are fixed on this build: `load` fires after the 5th page (8 more pages tested), back / forward works even with the stock `max_entries`, `mouse.wheel` scrolls, a pointer move to y = 0.5 is answered. The defensive code stays where it is cheap (commit + `readyState` poll, y clamp, `max_entries = 50`); the wheel fallback is not built. |
 | R8 | With `browser.startup.page = 3` and the sessionstore prefs, a cookie without expiry survives close + relaunch; without them it is gone. Under Juggler no restored tab shows up at launch (one `about:blank`); the launch still closes any extra page. |
 | R7, R12 | Answered by the integration tests (two profiles in one daemon, two sessions in one profile, `find_session` live and after a crash). |
-| R5 | Not automated; F12 is a manual check. |
+| R5 | Not automated; F12 is a manual check (`research/headed-check.mjs keep`). |
+| — | Found while building: the launcher probes displays with `xrandr` only. Without it (NixOS + niri here) the fingerprint's screen is unbounded, and a fresh profile claimed 1366x768 around a 1314x1428 window. `display.ts` adds compositor probes and a post-launch check (04, Viewport). |
 | R1, R2, R6 | Only the example importer depends on them; see `examples/firefox-import/README.md`. |

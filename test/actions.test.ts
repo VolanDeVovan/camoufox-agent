@@ -264,3 +264,10 @@ test("navigation still works after many pages in one browser", async () => {
   expect(last.text).toContain("Actions");
   for (const id of ids) await s.call("tabs_close", { tabId: id });
 });
+
+test("resize_window changes the page area", async () => {
+  await s.call("navigate", { url: site.base + "/landed" });
+  const r = await s.call("resize_window", { width: 900, height: 600 });
+  expect(r.isError, r.text).toBe(false);
+  expect(await js("innerWidth + 'x' + innerHeight")).toBe("900x600");
+});

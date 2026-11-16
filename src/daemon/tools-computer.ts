@@ -333,22 +333,42 @@ tool("file_upload", (call, args) =>
     return reply(`Uploaded to ${args.ref}: ${paths.join(", ")}`, lines);
   }));
 
+interface WindowSize {
+  width: number;
+  height: number;
+  outerWidth: number;
+  outerHeight: number;
+}
+
+async function windowSize(tab: Tab): Promise<WindowSize> {
+  const raw = await evalWithin<string>(tab.page, "JSON.stringify({ width: innerWidth, height: innerHeight, outerWidth: outerWidth, outerHeight: outerHeight })", 3000);
+  if (!raw) throw new ToolError("The page did not answer within 3 s.");
+  return JSON.parse(raw);
+}
+
 tool("resize_window", (call, args) =>
   onTab(call, args.tabId, async (tab) => {
     const width = Math.round(args.width), height = Math.round(args.height);
-    const before = await viewport(tab);
-    // Juggler resizes the window so that the page area gets this size. A tiling
-    // compositor may refuse, and the request then never settles: bound it.
-    const done = await Promise.race([tab.page.setViewportSize({ width, height }).then(() => true, () => false), sleep(4000).then(() => false)]);
-    await sleep(200);
-    const after = await viewport(tab);
-    const applied = Math.abs(after.width - width) <= 2 && Math.abs(after.height - height) <= 2;
-    if (applied) return text(`Page area of the "${tab.profile.name}" window is now ${after.width}x${after.height}.`);
-    return fail(
-      `Asked for ${width}x${height}; the page area is ${after.width}x${after.height} (was ${before.width}x${before.height}).` +
-        (done ? "" : " The window manager did not apply the size (a tiling compositor decides window sizes itself)."),
-    );
-  }), 15000);
+    const before = await windowSize(tab);
+    // Juggler resizes the window so that the page area gets this size. A request the
+    // window manager ignores may never settle, so it is bounded.
+    const set = (w: number, h: number) => Promise.race([tab.page.setViewportSize({ width: w, height: h }).then(() => true, () => false), sleep(4000).then(() => false)]);
+    await set(width, height);
+    await sleep(250);
+    const after = await windowSize(tab);
+    const fits = Math.abs(after.width - width) <= 2 && Math.abs(after.height - height) <= 2;
+    // A real resize moves the outer size with the inner one. When only the page area
+    // changed, the window manager kept the window (tiling) and the page is boxed inside
+    // it: a window with hundreds of pixels of "chrome", which pages can see.
+    const chromeBefore = { w: before.outerWidth - before.width, h: before.outerHeight - before.height };
+    const boxed = !call.daemon.config.headless && (after.outerWidth - after.width > chromeBefore.w + 40 || after.outerHeight - after.height > chromeBefore.h + 40);
+    if (fits && !boxed) return text(`Page area of the "${tab.profile.name}" window is now ${after.width}x${after.height} (window ${after.outerWidth}x${after.outerHeight}).`);
+    if (boxed) {
+      await set(before.width, before.height);
+      return fail(`Not resized: the window manager decides the size of the "${tab.profile.name}" window (a tiling compositor) and kept it at ${before.outerWidth}x${before.outerHeight}. The page area stays ${before.width}x${before.height}. Resize the window through the compositor instead.`);
+    }
+    return fail(`Asked for ${width}x${height}; the page area is ${after.width}x${after.height} (was ${before.width}x${before.height}).`);
+  }), 20000);
 
 tool("browser_batch", async (call, args) => {
   const content: Content[] = [];

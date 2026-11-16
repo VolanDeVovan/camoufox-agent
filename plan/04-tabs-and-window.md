@@ -73,6 +73,17 @@ throttling, or rendering screenshots without the compositor.
 ## Viewport
 
 `no_viewport` in headed mode: the page follows the window size as the user resizes it.
-The fingerprint's screen is drawn by the launcher's own rule, bounded by the largest
-display, and kept coherent with the window by the launcher (`clampScreenToDisplay`,
-`clampWindowDimensions`); we add nothing on top.
+The fingerprint's screen is at least as large as the largest display, so a window
+(resized by the user, tiled by the compositor, or `resize_window`) never exceeds its
+claimed screen; any page can compare the two. `display.ts` probes the displays: the
+launcher's own probe (xrandr, AppKit, PowerShell) and, where there is no xrandr, the
+compositor (niri, sway, Hyprland, wlr-randr). The launcher alone only bounds the
+screen from above, and with no xrandr it does not bound it at all: a fresh profile
+here once claimed a 1366x768 screen around a 1314x1428 window. When nothing can be
+probed, the launch checks the real window against the claimed screen and, if the
+window is larger, fixes the stored screen and launches again, once.
+
+`resize_window` asks Juggler for a page area. A tiling compositor keeps the window
+as it is, and Juggler then only boxes the page inside it (an "inner" size hundreds of
+pixels smaller than the "outer" one). That case is detected, undone and reported as
+"the window manager decides this window's size".
