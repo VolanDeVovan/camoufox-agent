@@ -19,8 +19,8 @@ one Camoufox process per running profile
 
 Firefox lets one process open a profile. Two agent sessions that both want the
 `default` profile would collide on its lock, so one daemon holds every browser and
-each session is a client of it. Sessions share a profile's logins and each sees only
-its own tabs.
+each session is a client of it. Sessions share a profile's logins; each acts in its own
+tabs, and all see the free ones (see below).
 
 ## Lifecycle
 
@@ -33,13 +33,14 @@ its own tabs.
 - When a session ends, its blank tabs are closed and the others stay open, free: owned
   by no session, like a tab the user opens by hand. What the session set up in them
   (request blocking, dialog answers) is undone and what was captured (console,
-  network) is forgotten. tabs_context lists free tabs; a session takes one by passing
+  network) is forgotten, again when a session takes the tab: the user may have logged
+  in there meanwhile. Scripts a session left in the page itself stay until it reloads. tabs_context lists free tabs; a session takes one by passing
   its tabId. Sessions have no identity that survives a restart, so the agent picks the
   tab by what it shows.
 - A tab nobody has used for an hour is closed, whoever owns it; an owner is told on
   its next call. `CAMOUFOX_AGENT_TAB_IDLE_MS` changes the hour. Use is an agent's call
   on the tab or the user's input in it: listeners in the isolated world (invisible to
-  the page) note the last trusted pointer, key or wheel event of the top document, and
+  the page) note the last trusted pointer, key, wheel or touch event of the top document, and
   the sweep reads it once a minute. Input inside an iframe is not seen. A tab marked
   `keep` (tabs_create / tabs_update) is never closed for being unused; a `label` says
   what a tab is for, and both stay with the tab when its session ends. A browser whose last

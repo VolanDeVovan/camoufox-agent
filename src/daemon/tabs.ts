@@ -95,6 +95,13 @@ export class Tab {
     return !!this.pendingDialog;
   }
 
+  /** Drop console, network and events: they belonged to the previous owner. */
+  forgetCaptures(): void {
+    this.console = [];
+    this.requests = [];
+    this.events = [];
+  }
+
   pushEvent(kind: TabEvent["kind"], text: string): TabEvent {
     const event: TabEvent = { seq: ++this.eventSeq, at: Date.now(), kind, text };
     this.events.push(event);
@@ -150,6 +157,9 @@ const INPUT_JS = `(function () {
   return s.t ? Date.now() - s.t : -1;
 })()`;
 
+/** How long a window.open we gave up on may still open its tab. */
+const ABANDONED_MS = 60000;
+
 const OPEN_TAB_JS = `(function () { window.open("about:blank", "_blank", "noopener,noreferrer"); return 1; })()`;
 
 export class TabRegistry {
@@ -178,7 +188,10 @@ export class TabRegistry {
     page.on("close", () => this.onClosed(tab));
     // A new document has no listeners yet. (load / domcontentloaded are not reliable in Camoufox.)
     page.on("framenavigated", (frame) => {
-      if (frame === page.mainFrame()) setTimeout(() => void this.userInput(tab), 1000);
+      if (frame !== page.mainFrame()) return;
+      // A window.open we gave up on dies with the document that was to run it.
+      profile.abandoned.delete(page);
+      setTimeout(() => void this.userInput(tab), 1000);
     });
     void this.userInput(tab);
     return tab;
@@ -220,11 +233,11 @@ export class TabRegistry {
 
   /** One window.open of ours from `opener` produced its tab; true if we had given up on it. */
   private settle(profile: RunningProfile, opener: Page): boolean {
-    const late = profile.abandoned.get(opener) ?? 0;
-    if (!late) return false;
-    if (late > 1) profile.abandoned.set(opener, late - 1);
+    const late = (profile.abandoned.get(opener) ?? []).filter((at) => Date.now() - at < ABANDONED_MS);
+    const ours = late.shift() !== undefined;
+    if (late.length) profile.abandoned.set(opener, late);
     else profile.abandoned.delete(opener);
-    return true;
+    return ours;
   }
 
   private onClosed(tab: Tab): void {
@@ -348,7 +361,7 @@ export class TabRegistry {
     // A page with a busy main thread never answers: the wait is on the tab appearing, not on this call.
     const page = await this.expectTab(profile, opener, () => opener.evaluate(OPEN_TAB_JS).then(() => {}), 5000);
     // Given up: the call still opens its tab once the page is free again, and that tab is closed.
-    if (!page && !opener.isClosed()) profile.abandoned.set(opener, (profile.abandoned.get(opener) ?? 0) + 1);
+    if (!page && !opener.isClosed()) profile.abandoned.set(opener, [...(profile.abandoned.get(opener) ?? []), Date.now()]);
     return page;
   }
 
@@ -404,6 +417,8 @@ export class TabRegistry {
         tab.owner = session.id;
         tab.pristine = false;
         tab.freedAt = null;
+        // What was captured while it was free (the user may have logged in there) is not handed over.
+        tab.forgetCaptures();
         session.notices.push(`Took tab ${tab.id}: it is this session's tab now.`);
       }
       session.lostActive = null;
@@ -555,8 +570,6 @@ export class TabRegistry {
       tab.blocking = null;
       await tab.page.unroute("**/*", handler).catch(() => {});
     }
-    tab.console = [];
-    tab.requests = [];
-    tab.events = [];
+    tab.forgetCaptures();
   }
 }

@@ -26,9 +26,11 @@ export interface RunningProfile {
   expectingFrom: Page | null;
   /**
    * window.open calls we gave up waiting for, per opener page (its main thread was
-   * busy). Each still opens a blank tab once the page wakes up; that tab is closed.
+   * busy), as the times we gave up. Each still opens a blank tab once the page wakes
+   * up; that tab is closed. A call the page has not run within a minute, or before it
+   * navigated, is forgotten: a blank tab it opens then is taken for the site's.
    */
-  abandoned: Map<Page, number>;
+  abandoned: Map<Page, number[]>;
   /** The page the daemon last selected in this window (follow-the-agent). */
   visible: Page | null;
   /** The last agent action in this browser, to attribute tabs a site opens without an opener. */

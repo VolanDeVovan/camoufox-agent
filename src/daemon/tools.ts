@@ -71,7 +71,7 @@ export async function tabLine(tab: Tab, active: boolean): Promise<string> {
 }
 
 /** Apply tabs_create / tabs_update's label and keep; the words for the reply. */
-function mark(tab: Tab, args: any): string {
+function mark(tab: Tab, args: any, idleMs: number): string {
   const said: string[] = [];
   if (typeof args.label === "string") {
     tab.label = args.label.replace(/\s+/g, " ").trim() || null;
@@ -79,7 +79,7 @@ function mark(tab: Tab, args: any): string {
   }
   if (typeof args.keep === "boolean") {
     tab.keep = args.keep;
-    said.push(tab.keep ? "kept (never closed for being unused)" : "closed after an hour unused");
+    said.push(tab.keep ? "kept (never closed for being unused)" : `closed after ${Math.round(idleMs / 60000)} min unused`);
   }
   return said.join(", ");
 }
@@ -141,7 +141,7 @@ tool("tabs_create", async (call, args) => {
       navError = String(e?.message || e);
     }
   }
-  const marked = mark(tab, args);
+  const marked = mark(tab, args, call.daemon.tabIdleMs);
   out.push(`Opened tab ${tab.id} in profile "${tab.profile.name}"; it is the active tab${marked ? `; ${marked}` : ""}. URL: ${maskUrl(tab.url())}`);
   if (navError) return fail(out.join("\n") + `\n${navError}`);
   for (const extra of await afterNavigation(call, tab)) out.push(extra);
@@ -150,7 +150,7 @@ tool("tabs_create", async (call, args) => {
 
 tool("tabs_update", async (call, args) => {
   const tab = await call.daemon.tabs.resolve(call.session, args.tabId);
-  const marked = mark(tab, args);
+  const marked = mark(tab, args, call.daemon.tabIdleMs);
   if (!marked) return fail("tabs_update needs label or keep.");
   return text(`Tab ${tab.id}: ${marked}.`);
 });

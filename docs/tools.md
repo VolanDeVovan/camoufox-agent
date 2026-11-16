@@ -2,7 +2,8 @@
 
 | Group | Tools |
 |---|---|
-| Core (as in Claude in Chrome) | `tabs_context` `tabs_create` `tabs_update` `tabs_close` `navigate` `read_page` `find` `form_input` `computer` `get_page_text` `javascript_tool` `read_console_messages` `read_network_requests` `browser_batch` `file_upload` `resize_window` |
+| Core (as in Claude in Chrome) | `tabs_context` `tabs_create` `tabs_close` `navigate` `read_page` `find` `form_input` `computer` `get_page_text` `javascript_tool` `read_console_messages` `read_network_requests` `browser_batch` `file_upload` `resize_window` |
+| Tabs | `tabs_update` (label, keep) |
 | Profiles | `find_session` `close_browser` |
 | Network | `get_network_request` `wait_for_network` `block_requests` `export_har` `export_curl` |
 | HTTP | `http_request` `fetch_markdown` `extract_table` |

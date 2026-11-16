@@ -34,10 +34,14 @@ test("two sessions racing to start the daemon end with one daemon and one browse
 
 test("a tab no agent uses is closed after the idle time, and its owner is told", async () => {
   const dir = tempDir();
-  const site = await fixture({ "/": "<title>Idle</title>hi" });
+  const site = await fixture({
+    "/": "<title>Idle</title>hi",
+    // A page cannot keep itself open with input it makes up: untrusted events do not count.
+    "/fake": `<title>Fake</title><script>setInterval(() => { for (const t of ["pointerdown", "keydown", "wheel"]) dispatchEvent(new Event(t)); }, 100)</script>`,
+  });
   const s = await startSession({ profilesDir: dir, env: { CAMOUFOX_AGENT_TAB_IDLE_MS: "2500" } });
   try {
-    const idle = Number((await s.call("tabs_create", { url: site.base + "/?idle" })).text.match(/Opened tab (\d+)/)![1]);
+    const idle = Number((await s.call("tabs_create", { url: site.base + "/fake?idle" })).text.match(/Opened tab (\d+)/)![1]);
     await s.call("tabs_create", { url: site.base + "/?kept", label: "stay here", keep: true });
     await s.call("tabs_create", { url: site.base + "/?used" });
     // The active tab is used every half second; the first one is not.
