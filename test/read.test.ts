@@ -1,4 +1,4 @@
-// read_page / find / get_page_text: what the agent sees of a page (06-page-interaction.md).
+// read_page / find / get_page_text: what the agent sees of a page.
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { cleanupTemps, fixture, startSession, tempDir, type Fixture, type TestSession } from "./helpers.js";
 

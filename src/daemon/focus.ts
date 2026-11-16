@@ -1,4 +1,4 @@
-// Giving keyboard focus back (04, Compositor). Nothing we do activates a window, but a
+// Giving keyboard focus back. Nothing we do activates a window, but a
 // compositor may focus any new toplevel: niri does, unless the user has an
 // `open-focused false` rule. Where the compositor can be asked, the window that had
 // focus before a launch gets it back the moment the new window takes it.

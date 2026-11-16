@@ -1,4 +1,4 @@
-// Console and network capture, and masking of what they show (05, 07).
+// Console and network capture, and masking of what they show.
 import { readFileSync, statSync } from "node:fs";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { cleanupTemps, fixture, startSession, tempDir, type Fixture, type TestSession } from "./helpers.js";

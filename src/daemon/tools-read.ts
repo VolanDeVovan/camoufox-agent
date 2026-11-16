@@ -1,4 +1,4 @@
-// read_page, find, get_page_text (05-tools.md; refs in 06-page-interaction.md).
+// read_page, find, get_page_text.
 import { fail, text } from "../protocol.js";
 import { maskUrl, untrusted } from "./redact.js";
 import { pageText, snapshot } from "./snapshot.js";

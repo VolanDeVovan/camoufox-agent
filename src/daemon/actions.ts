@@ -1,4 +1,4 @@
-// Actions report what happened (06-page-interaction.md): after a click, a key or a
+// Actions report what happened: after a click, a key or a
 // form input the daemon watches the page for about a second and says what it did.
 // Refusals instead of guesses for disabled, hidden and covered elements.
 import type { Locator } from "playwright-core";
@@ -214,7 +214,7 @@ export async function targetOf(tab: Tab, ref: string, verb = "clicked"): Promise
   return { locator, x: box.x + info.fx, y: box.y + info.fy, label: info.desc, secret };
 }
 
-/** A pointer move to y in [0, 1) used to wedge the tab; all pointer positions keep y >= 1 (06). */
+/** A pointer move to y in [0, 1) used to wedge the tab; all pointer positions keep y >= 1. */
 export const safeY = (y: number) => (y < 1 ? 1 : y);
 
 const KEY_ALIASES: Record<string, string> = {
@@ -252,7 +252,7 @@ export function modifiersOf(text: string | undefined): string[] {
     .filter((m) => ["Control", "Meta", "Alt", "Shift"].includes(m));
 }
 
-/** Randomized per-key delay: Gaussian around ~80 ms (06, Human-looking input). The one piece of typing rhythm that is ours. */
+/** Randomized per-key delay: Gaussian around ~80 ms. The one piece of typing rhythm that is ours. */
 export function keyDelay(): number {
   const u = 1 - Math.random(), v = Math.random();
   const gauss = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);

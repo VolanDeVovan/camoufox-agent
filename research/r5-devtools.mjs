@@ -1,4 +1,4 @@
-// R5: are Firefox DevTools usable in the agent's headed window? Focuses the window, presses
+// are Firefox DevTools usable in the agent's headed window? Focuses the window, presses
 // F12 (wtype) and saves a screenshot of the window (niri). Needs niri and wtype in PATH.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";

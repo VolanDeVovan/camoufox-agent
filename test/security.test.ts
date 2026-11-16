@@ -1,4 +1,4 @@
-// Secrets are masked in every tool that can show them (07, D11): one page that leaks
+// Secrets are masked in every tool that can show them: one page that leaks
 // secrets through every channel, every tool called without reveal_values, and none of
 // the secrets may appear in any reply. javascript_tool is the one documented exception.
 import { afterAll, beforeAll, expect, test } from "vitest";

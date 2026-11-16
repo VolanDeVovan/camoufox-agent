@@ -1,4 +1,4 @@
-// Group `wait`: wait_for, handle_dialog (05-tools.md; dialogs in 06).
+// Group `wait`: wait_for, handle_dialog.
 import { fail, text } from "../protocol.js";
 import { evalWithin } from "./navigation.js";
 import { maskUrl } from "./redact.js";

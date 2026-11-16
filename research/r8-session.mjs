@@ -1,4 +1,4 @@
-// R8: do session cookies survive a restart with session restore on; are restored tabs closable?
+// do session cookies survive a restart with session restore on; are restored tabs closable?
 import { firefox } from "playwright-core";
 import { launchOptions } from "camoufox";
 import { mkdtempSync, readdirSync, existsSync } from "node:fs";

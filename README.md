@@ -4,8 +4,8 @@ An MCP server that gives coding agents a browser: [Camoufox](https://github.com/
 (anti-detect Firefox) with tools shaped like Claude in Chrome's.
 
 > [!IMPORTANT]
-> This project is vibe-coded: the code was written by Claude Code from the spec in
-> [`plan/`](plan/README.md), with tests but without a line-by-line human review.
+> This project is vibe-coded: the code was written by Claude Code, with tests but
+> without a line-by-line human review.
 > It drives a browser that holds your real logged-in sessions. Treat it as an
 > experiment, read the code before you trust it, and expect rough edges.
 
@@ -33,7 +33,7 @@ Possible next step: converting cookies and sessions from Chrome and other browse
 - Tabs, page snapshots with refs, clicks and typing, screenshots, console, network,
   JavaScript: the Claude in Chrome tool set, plus network bodies, browserless HTTP
   with the profile's cookies, and anti-bot diagnostics (31 tools,
-  [`plan/05-tools.md`](plan/05-tools.md)).
+  [docs/tools.md](docs/tools.md)).
 - A visible window per profile, so you can watch and take over.
 - One daemon per user holds the browsers, so parallel agent sessions share a profile.
 - Every click reports what the page did; secrets are masked in tool output.
@@ -67,8 +67,8 @@ Profiles live in `~/.local/share/camoufox-agent/profiles/<name>/`.
 pnpm test
 ```
 
-Tests run a real headless Camoufox against local pages. The design, the decisions and
-the research behind them are in [`plan/`](plan/README.md).
+Tests run a real headless Camoufox against local pages. How it works is described in
+[`docs/`](docs/README.md).
 
 ## License
 

@@ -1,5 +1,5 @@
 // find_session against real browsers: live read, on-disk read, after a crash; the
-// cross-profile hint; cookies and web_storage with masking (02, 05, 07).
+// cross-profile hint; cookies and web_storage with masking.
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { browsersOn, cleanupTemps, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";

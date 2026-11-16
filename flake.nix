@@ -124,7 +124,7 @@
         };
       });
 
-      # An extra way to install, never the only one: the npm package needs no Nix (plan/08-packaging.md).
+      # An extra way to install, never the only one: the npm package needs no Nix.
       packages = forAllSystems (pkgs: {
         default = package pkgs;
         browser = camoufoxBrowser pkgs;

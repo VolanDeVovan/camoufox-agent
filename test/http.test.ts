@@ -1,4 +1,4 @@
-// Group http: the profile's cookies go only to their own origin, also across redirects (07).
+// Group http: the profile's cookies go only to their own origin, also across redirects.
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { browsersOn, cleanupTemps, fixture, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";

@@ -1,4 +1,4 @@
-// The real displays of this machine, for a headed launch (04, Viewport). A window can
+// The real displays of this machine, for a headed launch. A window can
 // be as large as the largest display, while the screen in the fingerprint is fixed: a
 // window larger than its own screen is impossible on a real machine, and any page can
 // compare the two. So a profile's screen is at least as large as the largest display.

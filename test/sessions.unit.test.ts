@@ -1,4 +1,4 @@
-// find_session on disk: wrong answers send the agent to the wrong profile (02-profiles.md).
+// find_session on disk: wrong answers send the agent to the wrong profile.
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";

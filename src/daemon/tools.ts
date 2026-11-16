@@ -1,4 +1,4 @@
-// Tool handlers: the daemon side of every MCP tool (05-tools.md). Arguments arrive
+// Tool handlers: the daemon side of every MCP tool. Arguments arrive
 // validated by the MCP server's schemas.
 import type { ToolResult } from "../protocol.js";
 import { fail, text } from "../protocol.js";

@@ -1,4 +1,4 @@
-// Tabs across sessions and profiles: the core of the daemon model (02, 03, 04).
+// Tabs across sessions and profiles: the core of the daemon model.
 import { existsSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

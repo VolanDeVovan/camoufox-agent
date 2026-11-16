@@ -1,5 +1,5 @@
 // The ref engine: read_page / find list what an agent can act on, each with a ref
-// (06-page-interaction.md). Refs live in a registry inside the isolated world and are
+//. Refs live in a registry inside the isolated world and are
 // resolved by a custom selector engine, so nothing is written into the DOM and the
 // page's scripts cannot see it. The idea is the reference's (helpers.ts: REF_ENGINE_JS,
 // snapshotPage); the walker is ours.
@@ -71,7 +71,7 @@ interface WalkResult {
   rootMissing?: boolean;
 }
 
-/** The secret-field test every tool shares (07, Secret masking). `function (el) -> boolean` */
+/** The secret-field test every tool shares. `function (el) -> boolean` */
 export const IS_SECRET_FN = `function (el) {
   if (!el || !el.getAttribute) return false;
   var type = (el.getAttribute("type") || "").toLowerCase();

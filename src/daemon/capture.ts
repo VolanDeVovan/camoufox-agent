@@ -1,5 +1,5 @@
 // Per-tab capture, on from the moment a tab exists: console, page errors, network,
-// dialogs, downloads (05-tools.md, 06-page-interaction.md).
+// dialogs, downloads.
 import { statSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { existsSync } from "node:fs";
@@ -170,7 +170,7 @@ export function attachCapture(tab: Tab): void {
   });
 
   // Every dialog must be answered, or the page hangs. Without an armed answer the
-  // default is dismiss, and the action that caused it reports that (06, Dialogs).
+  // default is dismiss, and the action that caused it reports that.
   page.on("dialog", async (dialog: Dialog) => {
     const type = dialog.type();
     const message = dialog.message();

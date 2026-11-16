@@ -1,4 +1,4 @@
-// Secret masking (07): unmasked values would land in transcripts.
+// Secret masking: unmasked values would land in transcripts.
 import { expect, test } from "vitest";
 import { maskBody, maskHeaders, maskUrl, scrubErrorText } from "../src/daemon/redact.js";
 import { validateProfileName } from "../src/paths.js";

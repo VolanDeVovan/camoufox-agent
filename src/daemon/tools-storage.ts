@@ -1,4 +1,4 @@
-// find_session, and the `storage` group: cookies, web_storage (05-tools.md).
+// find_session, and the `storage` group: cookies, web_storage.
 import { fail, text } from "../protocol.js";
 import { evalWithin } from "./navigation.js";
 import { isSecretName, maskBody, maskUrl, maskedValue, untrusted } from "./redact.js";

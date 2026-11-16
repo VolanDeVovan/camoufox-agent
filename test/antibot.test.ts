@@ -1,4 +1,4 @@
-// Challenge pages are flagged so the agent stops instead of retrying (07), and a normal
+// Challenge pages are flagged so the agent stops instead of retrying, and a normal
 // page with a captcha widget is not mistaken for one.
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { cleanupTemps, fixture, startSession, tempDir, type Fixture, type TestSession } from "./helpers.js";

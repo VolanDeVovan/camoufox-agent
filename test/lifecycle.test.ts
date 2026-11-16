@@ -1,6 +1,6 @@
 // Daemon lifecycle: one daemon under a start race, idle exit, no orphan Camoufox on any
 // exit path, relaunch after a browser crash. Orphans and double launches are the
-// failures the reference spent releases on (03-lifecycle.md).
+// failures the reference spent releases on.
 import { afterAll, expect, test } from "vitest";
 import { browsersOn, cleanupTemps, daemonPids, fixture, sleep, startSession, tempDir, waitFor } from "./helpers.js";
 

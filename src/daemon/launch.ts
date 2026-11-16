@@ -1,4 +1,4 @@
-// Launch configuration: the same for every launch, fixed per profile (03-lifecycle.md).
+// Launch configuration: the same for every launch, fixed per profile.
 import { existsSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BrowserContext } from "playwright-core";
@@ -11,9 +11,9 @@ const HOST_OS: Record<string, string> = { linux: "linux", darwin: "macos", win32
 
 /** Firefox prefs every profile runs with. */
 export const PREFS: Record<string, unknown> = {
-  // camoufox.cfg used to ship 0, which disables back / forward (06, Camoufox quirks).
+  // camoufox.cfg used to ship 0, which disables back / forward.
   "browser.sessionhistory.max_entries": 50,
-  // Session restore keeps cookies without an expiry across restarts (03, Session cookies).
+  // Session restore keeps cookies without an expiry across restarts.
   "browser.startup.page": 3,
   "browser.sessionstore.resume_from_crash": true,
   "browser.sessionstore.max_resumed_crashes": -1,
@@ -21,12 +21,12 @@ export const PREFS: Record<string, unknown> = {
   "browser.sessionstore.restore_on_demand": true,
   "browser.sessionstore.restore_tabs_lazily": true,
   "browser.sessionstore.interval": 5000,
-  // The window is normally unfocused, often hidden: keep frames and timers running (04, R9).
+  // The window is normally unfocused, often hidden: keep frames and timers running.
   "widget.wayland.vsync.enabled": false,
   "dom.min_background_timeout_value": 4,
   "dom.timeout.enable_budget_timer_throttling": false,
   "layout.throttled_frame_rate": 60,
-  // Popups a site opens become tabs in the profile's window, not new toplevels that could take focus (04).
+  // Popups a site opens become tabs in the profile's window, not new toplevels that could take focus.
   "browser.link.open_newwindow": 3,
   "browser.link.open_newwindow.restriction": 0,
   "browser.tabs.warnOnClose": false,
@@ -61,12 +61,12 @@ function writeIdentity(profileDir: string, os: string, fingerprint: Record<strin
 
 /**
  * The device a profile shows to sites: drawn once, on the profile's first launch, and
- * stored in the profile, so a profile is the same device every time (02-profiles.md).
+ * stored in the profile, so a profile is the same device every time.
  * What is stored is the launcher's own input (an fpgen fingerprint); the launcher
  * derives fonts, voices, GPU parameters and noise seeds from it deterministically.
  *
  * `mustHold` is the largest display (or a window found larger than the stored
- * screen): the screen is kept at least that large (04, Viewport), which changes the
+ * screen): the screen is kept at least that large, which changes the
  * stored device only when a larger display appears.
  */
 async function profileFingerprint(profileDir: string, os: string, mustHold: Size | null): Promise<Record<string, any>> {
@@ -96,7 +96,7 @@ async function launchOnce(profileDir: string, headless: boolean, os: string, mus
   const fingerprint = await profileFingerprint(profileDir, os, mustHold);
   const options = await launchOptions({
     headless,
-    // The host's OS: a foreign one forces canvas noise and is slower and heavier (03).
+    // The host's OS: a foreign one forces canvas noise and is slower and heavier.
     os,
     fingerprint,
     humanize: 0.5,
@@ -105,7 +105,7 @@ async function launchOnce(profileDir: string, headless: boolean, os: string, mus
     i_know_what_im_doing: true,
     // Playwright options, passed through by the launcher.
     acceptDownloads: true,
-    // Playwright adds -foreground to a headed Firefox, which raises the window (04, Focus rules).
+    // Playwright adds -foreground to a headed Firefox, which raises the window.
     ignoreDefaultArgs: ["-foreground"],
     // The daemon closes its browsers itself on every exit path.
     handleSIGINT: false,
@@ -120,7 +120,7 @@ async function launchOnce(profileDir: string, headless: boolean, os: string, mus
 }
 
 export async function launchProfile(profileDir: string, headless: boolean): Promise<BrowserContext> {
-  // The ref selector engine has to exist before the context is created (06).
+  // The ref selector engine has to exist before the context is created.
   await refEngineReady();
   const os = HOST_OS[process.platform] || "linux";
   const display = headless ? null : await largestDisplay();

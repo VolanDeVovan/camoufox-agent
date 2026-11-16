@@ -1,4 +1,4 @@
-// Regression tests for bugs found in review: each failed before its fix (11-testing.md).
+// Regression tests for bugs found in review: each failed before its fix.
 import { chmodSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";

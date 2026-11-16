@@ -1,4 +1,4 @@
-// Navigation that does not rely on Playwright's lifecycle events (06, Camoufox quirks).
+// Navigation that does not rely on Playwright's lifecycle events.
 // Adapted from the reference (reference/mcp-camoufox/src/helpers.ts: gotoReady, waitReady).
 import type { Page } from "playwright-core";
 import { maskUrl } from "./redact.js";

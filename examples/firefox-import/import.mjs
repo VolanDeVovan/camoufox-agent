@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Example, not part of the package: copy one Firefox container (or the no-container
 // jar) into a camoufox-agent profile. No CLI contract, no support promise: copy it,
-// adapt it, run it from your own scripts. See README.md next to this file and
-// plan/10-example-firefox-import.md.
+// adapt it, run it from your own scripts. See README.md next to this file.
 //
 //   node import.mjs --firefox-profile ~/.mozilla/firefox/xxxx.default \
 //                   --container Work --target ~/.local/share/camoufox-agent/profiles/work [--storage] [--dry-run]
@@ -311,7 +310,7 @@ function importStorage(opts, containerId, report) {
     for (const d of subdirs) cpSync(join(from, d), join(to, d), { recursive: true });
     writeFileSync(join(to, ".metadata-v2"), rewriteMetadata(readFileSync(join(from, ".metadata-v2")), containerId));
     // localStorage and IndexedDB databases record their own origin, attributes
-    // included, and refuse to open under another one (R1).
+    // included, and refuse to open under another one.
     const dbs = [join(to, "ls", "data.sqlite"), ...(existsSync(join(to, "idb")) ? readdirSync(join(to, "idb")).filter((f) => f.endsWith(".sqlite")).map((f) => join(to, "idb", f)) : [])];
     for (const file of dbs.filter((f) => existsSync(f))) {
       const db = new sqlite.DatabaseSync(file);

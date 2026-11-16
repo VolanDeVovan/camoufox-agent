@@ -1,5 +1,5 @@
 // ProfileManager: profile name -> running browser (or none). Lazy launch, close,
-// crash handling (03-lifecycle.md).
+// crash handling.
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -140,7 +140,7 @@ export class ProfileManager {
     const early = () => (died = true);
     context.on("close", early);
     const pages = context.pages();
-    // Session restore must not reopen tabs behind anyone's back: sessions own tabs (03).
+    // Session restore must not reopen tabs behind anyone's back: sessions own tabs.
     for (const extra of pages.slice(1)) await extra.close().catch(() => {});
     if (died) {
       if (temp) rmSync(dir, { recursive: true, force: true });

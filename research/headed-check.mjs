@@ -1,4 +1,4 @@
-// Headed checklist (11-testing.md, "Not automated"): run by hand when focus, window or
+// Headed checklist: run by hand when focus, window or
 // rendering code changes. Needs a Wayland session with niri for the focus lines.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";

@@ -1,11 +1,11 @@
-// Group `antibot`: detect_anti_bot, fingerprint_audit (05-tools.md).
+// Group `antibot`: detect_anti_bot, fingerprint_audit.
 import { text } from "../protocol.js";
 import { AUDIT_JS, challengeLine, contradictions, detect } from "./antibot.js";
 import { maskUrl } from "./redact.js";
 import { ToolError } from "./state.js";
 import { navigationHooks, onTab, tool } from "./tools.js";
 
-// navigate and click replies say "challenge page (<vendor>)" when the same logic fires (07).
+// navigate and click replies say "challenge page (<vendor>)" when the same logic fires.
 navigationHooks.unshift((_call, tab) => challengeLine(tab));
 
 tool("detect_anti_bot", (call, args) =>

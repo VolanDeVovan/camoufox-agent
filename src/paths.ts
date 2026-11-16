@@ -74,7 +74,7 @@ export function downloadsDir(): string {
 const PROFILE_NAME = /^[a-z0-9][a-z0-9-]*$/;
 export const TEMP_PROFILE = "temp";
 
-/** Profile names become directory names, so they are restricted (02, 07). Throws with a message for the agent. */
+/** Profile names become directory names, so they are restricted. Throws with a message for the agent. */
 export function validateProfileName(name: unknown): string {
   if (typeof name !== "string" || !PROFILE_NAME.test(name) || name.length > 64) {
     throw new Error(

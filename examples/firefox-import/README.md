@@ -3,8 +3,8 @@
 Not part of the package: no CLI contract, no support promise. Copy it, adapt it, run it
 from your own scripts. The only interface camoufox-agent offers for outside data is the
 profile directory itself, which anything may write to while that profile's browser is
-not running (`plan/02-profiles.md`); this script is one worked example of using it.
-Background: `plan/10-example-firefox-import.md`.
+not running ([docs/profiles.md](../../docs/profiles.md)); this script is one worked
+example of using it.
 
 ```
 # which containers does the Firefox profile have?
@@ -59,11 +59,11 @@ may come out inconsistent, and data from the last few seconds may be missing.
 
 - Moving a container's cookies (persistent and session), localStorage and IndexedDB
   into the default context works: Camoufox reads all of them back
-  (`research/r1-container-import.mjs`, R1).
+  (`research/r1-container-import.mjs`).
 - Firefox 160 and Camoufox 158 use the same schema versions for cookies (17),
-  localStorage (80) and IndexedDB (416), so nothing is reset on the way (R2).
+  localStorage (80) and IndexedDB (416), so nothing is reset on the way.
 - Whether a session survives the move to another device fingerprint depends on the
-  site (R6). Measured with a Google account (`research/r6-google-session.mjs`): Gmail
+  site. Measured with a Google account (`research/r6-google-session.mjs`): Gmail
   opened signed in; the Cloud console asked to verify the sign-in with a passkey.
   Expect sensitive services to ask for one re-verification in the profile's window.
 

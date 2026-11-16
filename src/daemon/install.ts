@@ -1,6 +1,6 @@
 // The browser binary. The pinned `camoufox` launcher downloads it into its cache; we
 // start that download in the background on first need and answer with progress until
-// it is ready (03-lifecycle.md, 08-packaging.md).
+// it is ready.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";

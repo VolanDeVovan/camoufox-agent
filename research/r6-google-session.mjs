@@ -1,4 +1,4 @@
-// R6: does a Google session survive the move to a different fingerprint? Imports the
+// does a Google session survive the move to a different fingerprint? Imports the
 // google.com cookies of one Firefox container into a throwaway profile, opens Gmail and
 // the Cloud console, and reports only where each landed. Nothing is clicked, no page
 // content or cookie value is printed, and the throwaway profile is deleted at the end.

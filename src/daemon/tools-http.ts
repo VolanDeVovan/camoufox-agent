@@ -1,7 +1,7 @@
-// Group `http`: http_request, fetch_markdown, extract_table (05-tools.md).
+// Group `http`: http_request, fetch_markdown, extract_table.
 // Browserless HTTP with Firefox's TLS fingerprint (impit) and the profile's cookies.
 // A cookie only ever goes to its own origin: the Cookie header is recomputed for
-// every redirect hop, so a redirect cannot carry a session to another site (07).
+// every redirect hop, so a redirect cannot carry a session to another site.
 import { existsSync } from "node:fs";
 import { fail, text } from "../protocol.js";
 import { validateProfileName } from "../paths.js";

@@ -1,4 +1,4 @@
-// computer, form_input, javascript_tool, file_upload, resize_window, browser_batch (05-tools.md).
+// computer, form_input, javascript_tool, file_upload, resize_window, browser_batch.
 import { existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -132,7 +132,7 @@ async function computer(call: Call, tab: Tab, args: any): Promise<ToolResult> {
         secret = !!(await evalWithin<boolean>(page, `(function () { var a = document.activeElement; return !!a && a.type === "password"; })()`, 2000));
       }
       const lines = await observe(tab, async () => {
-        // Paste is the default: the text arrives the way a person pastes it (06).
+        // Paste is the default: the text arrives the way a person pastes it.
         if (args.per_key) await typePerKey(tab, args.text);
         else await page.keyboard.insertText(args.text);
       }, { onNavigated });
@@ -287,7 +287,7 @@ tool("javascript_tool", (call, args) =>
   }), (args) => Math.min(60000, Math.max(1000, (args.timeout_s ?? 20) * 1000)) + 5000);
 
 /**
- * Upload path limits (07): a relative path is taken under the session's working
+ * Upload path limits: a relative path is taken under the session's working
  * directory and may not leave it (or the system temp directory); anything else must
  * be an absolute path the agent names explicitly. Every path is echoed in the reply.
  */

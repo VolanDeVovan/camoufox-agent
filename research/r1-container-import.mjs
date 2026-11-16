@@ -1,4 +1,4 @@
-// R1: can container storage be moved to the default context? Builds a source profile with
+// can container storage be moved to the default context? Builds a source profile with
 // a real container (a Juggler context: origin attributes ^userContextId=N), runs
 // examples/firefox-import on a copy taken while the browser runs, and reads the data
 // back through camoufox-agent in the default context.

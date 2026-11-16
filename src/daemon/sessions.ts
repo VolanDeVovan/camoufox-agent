@@ -1,4 +1,4 @@
-// find_session and the cross-profile hint (02-profiles.md): which profile holds a
+// find_session and the cross-profile hint: which profile holds a
 // session for a site. Evidence from cookie names and storage, never a "logged in" verdict,
 // and never a cookie value.
 import { createRequire } from "node:module";
@@ -36,7 +36,7 @@ export function registrable(host: string): string {
   return getDomain(h, { allowPrivateDomains: false }) || h;
 }
 
-// Anti-bot and analytics cookies never count as a session (02): every profile that ever
+// Anti-bot and analytics cookies never count as a session: every profile that ever
 // passed a challenge would otherwise "have" the vendor.
 const ANTIBOT = /^(cf_clearance|__cf_bm|_cfuvid|__cflb|__cfruid|cf_chl_.*|_px.*|pxcts|datadome|ak_bmsc|bm_sv|bm_sz|bm_mi|_abck|incap_ses_.*|visid_incap_.*|nlbi_.*|reese84|__ddg.*|aws-waf-token|_GRECAPTCHA)$/i;
 const ANALYTICS = /^(_ga.*|_gid|_gat.*|_gcl_.*|_fbp|_fbc|__utm.*|_hj.*|_pk_.*|_clck|_clsk|mp_.*|ajs_.*|amp_.*|amplitude.*|optimizely.*|intercom-.*|_uetsid|_uetvid|_scid.*|_ttp|_tt_.*|__gads|__gpi|_dd_s|OptanonConsent|OptanonAlertBoxClosed|CookieConsent.*)$/i;
@@ -104,7 +104,7 @@ function readCookieDb(dir: string): CookieInfo[] {
   }
 }
 
-/** Cookies without an expiry, as session restore keeps them (03, Session cookies). */
+/** Cookies without an expiry, as session restore keeps them. */
 function readSessionCookies(dir: string): CookieInfo[] {
   const candidates = [join(dir, "sessionstore.jsonlz4"), join(dir, "sessionstore-backups", "recovery.jsonlz4")]
     .filter((f) => existsSync(f))
@@ -318,7 +318,7 @@ export async function findSession(daemon: Daemon, site: string): Promise<string>
 }
 
 /**
- * The safety net behind rule 2 (02): one line when the profile a tab is in has no
+ * The safety net behind rule 2: one line when the profile a tab is in has no
  * auth-looking cookie for the site and another profile has. The server never
  * switches profiles by itself.
  */

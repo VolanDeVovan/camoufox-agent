@@ -1,4 +1,4 @@
-// R3: does the pinned launcher + playwright-core launch Camoufox here?
+// does the pinned launcher + playwright-core launch Camoufox here?
 import { firefox } from "playwright-core";
 import { launchOptions } from "camoufox";
 import { mkdtempSync } from "node:fs";

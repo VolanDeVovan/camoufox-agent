@@ -1,4 +1,4 @@
-// Group `antibot`: is this a challenge page, and what does a page see of us (05, 07).
+// Group `antibot`: is this a challenge page, and what does a page see of us.
 // The server solves nothing: on a challenge page the agent hands over to the user,
 // who can solve it in the visible window.
 import { evalWithin } from "./navigation.js";
@@ -103,7 +103,7 @@ export async function detect(tab: Tab): Promise<Finding> {
   return finding;
 }
 
-/** The line navigate / click replies carry on a challenge page, so the agent stops instead of retrying (07). */
+/** The line navigate / click replies carry on a challenge page, so the agent stops instead of retrying. */
 export async function challengeLine(tab: Tab): Promise<string | null> {
   const f = await detect(tab).catch(() => null);
   if (!f?.challenge) return null;

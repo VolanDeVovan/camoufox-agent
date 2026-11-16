@@ -1,5 +1,5 @@
-// R4: app-id, focus on new window, window.open from the isolated world, tab selection.
-// R9 (part): screenshot / rAF / timers in an unfocused window and a background tab.
+// app-id, focus on new window, window.open from the isolated world, tab selection.
+// Also: screenshot / rAF / timers in an unfocused window and a background tab.
 import { firefox } from "playwright-core";
 import { launchOptions } from "camoufox";
 import { mkdtempSync } from "node:fs";

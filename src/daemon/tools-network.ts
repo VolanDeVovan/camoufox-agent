@@ -1,6 +1,6 @@
-// read_console_messages, read_network_requests and the `network` group (05-tools.md).
+// read_console_messages, read_network_requests and the `network` group.
 // Capture is on from the moment a tab exists (capture.ts); everything shown is masked
-// unless reveal_values (07).
+// unless reveal_values.
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fail, text } from "../protocol.js";

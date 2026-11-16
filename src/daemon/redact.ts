@@ -1,4 +1,4 @@
-// Secret masking (07-security.md). Credentials must not reach a tool reply by default:
+// Secret masking. Credentials must not reach a tool reply by default:
 // a reply lands in the transcript. Every masking decision lives here so tools cannot
 // drift apart. Adapted from the reference (reference/mcp-camoufox/src/redact.ts).
 
@@ -132,7 +132,7 @@ export function scrubErrorText(message: string): string {
 }
 
 /**
- * Page-derived content is untrusted input (07): the reply marks it so the agent
+ * Page-derived content is untrusted input: the reply marks it so the agent
  * treats it as data, never as instructions.
  */
 export function untrusted(what: string, body: string): string {

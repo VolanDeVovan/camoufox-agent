@@ -1,5 +1,5 @@
 // Test harness: a real MCP client over stdio against the built server, a real
-// (headless) Camoufox, pages from a local HTTP server. No mocks (11-testing.md).
+// (headless) Camoufox, pages from a local HTTP server. No mocks.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { execFileSync } from "node:child_process";

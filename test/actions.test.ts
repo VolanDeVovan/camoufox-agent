@@ -1,4 +1,4 @@
-// Action replies: what separates this from raw Playwright (06-page-interaction.md).
+// Action replies: what separates this from raw Playwright.
 // navigated / changed / opened tab / dialog / download / nothing; refusals.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";

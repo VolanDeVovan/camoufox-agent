@@ -1,4 +1,4 @@
-// R11: Camoufox quirks on the pinned build.
+// Camoufox quirks on the pinned build.
 import { firefox } from "playwright-core";
 import { launchOptions } from "camoufox";
 import { mkdtempSync } from "node:fs";

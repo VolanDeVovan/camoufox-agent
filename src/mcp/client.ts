@@ -49,7 +49,7 @@ export class DaemonClient {
     child.unref();
   }
 
-  /** A daemon of another version on the same config is asked to exit once idle (01). */
+  /** A daemon of another version on the same config is asked to exit once idle. */
   private retireOtherVersions(): void {
     if (this.retiredOld) return;
     this.retiredOld = true;

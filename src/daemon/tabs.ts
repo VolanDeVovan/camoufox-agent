@@ -1,4 +1,4 @@
-// TabRegistry: tab ids, which session owns each tab, each session's active tab (04-tabs-and-window.md).
+// TabRegistry: tab ids, which session owns each tab, each session's active tab.
 import type { Frame, Page } from "playwright-core";
 import { attachCapture, type ConsoleEntry, type DialogAnswer, type NetEntry } from "./capture.js";
 import type { RunningProfile } from "./profiles.js";
@@ -224,7 +224,7 @@ export class TabRegistry {
       return spare;
     }
     // New tabs open beside an existing one, inside the profile's window. Juggler's
-    // Browser.newPage always opens a new window, a focus risk each time (04).
+    // Browser.newPage always opens a new window, a focus risk each time.
     const own = this.of(session).filter((t) => t.profile === profile);
     const active = own.find((t) => t.id === session.activeTab);
     const openers = [active, ...own, ...this.inProfile(profile)]
@@ -265,7 +265,7 @@ export class TabRegistry {
 
   /**
    * Follow the agent: show the tab the agent works on, where that cannot take
-   * keyboard focus. Measured on Wayland (R4): selecting a tab neither focuses nor
+   * keyboard focus. Measured on Wayland: selecting a tab neither focuses nor
    * raises the window. Elsewhere the agent works in background tabs.
    */
   select(tab: Tab): void {
@@ -352,7 +352,7 @@ export class TabRegistry {
     await tab.page.close().catch(() => {});
   }
 
-  /** An MCP server exited: its tabs are closed; browsers stay for other sessions (03). */
+  /** An MCP server exited: its tabs are closed; browsers stay for other sessions. */
   async closeSession(session: Session): Promise<void> {
     for (const tab of this.of(session)) await this.close(tab).catch(() => {});
   }

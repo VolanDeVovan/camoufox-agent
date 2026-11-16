@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // camoufox-agentd: one per user (and config). Holds every browser; MCP servers are its
-// clients (01-architecture.md). Socket server, client sessions, idle exit.
+// clients. Socket server, client sessions, idle exit.
 import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { resolve, sep } from "node:path";
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
       server?.close();
     } catch {}
     for (const s of sessions.values()) s.socket?.destroy();
-    // Browsers are our children and are closed on every exit path (03).
+    // Browsers are our children and are closed on every exit path.
     await Promise.race([daemon.profiles.closeAll(), new Promise((r) => setTimeout(r, 15000))]);
     // A clean exit needs no post-mortem; the log stays only after a crash.
     if (code === 0) {
@@ -211,7 +211,7 @@ async function main(): Promise<void> {
       if (sessions.get(s.id) !== s) return;
       sessions.delete(s.id);
       s.socket = null;
-      // Its tabs are closed; browsers stay for other sessions (03).
+      // Its tabs are closed; browsers stay for other sessions.
       void daemon.tabs.closeSession(s).finally(checkIdle);
     };
     conn.on("close", gone);
