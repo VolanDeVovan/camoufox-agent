@@ -261,13 +261,22 @@ tool("javascript_tool", (call, args) =>
     if (!code.trim()) return fail("javascript_tool needs text: the JavaScript to run.");
     const world = args.world === "isolated" ? "isolated" : "main";
     const limit = Math.min(60000, Math.max(1000, (args.timeout_s ?? 20) * 1000));
-    let value: unknown;
-    try {
-      value = await Promise.race([
-        // "mw:" runs in the page's own world (Camoufox, main_world_eval); without it Juggler evaluates in an isolated world.
-        tab.page.evaluate((world === "main" ? "mw:" : "") + code),
+    // "mw:" runs in the page's own world (Camoufox, main_world_eval); without it Juggler evaluates in an isolated world.
+    const run = (source: string) =>
+      Promise.race([
+        tab.page.evaluate((world === "main" ? "mw:" : "") + source),
         new Promise((_, reject) => setTimeout(() => reject(new Error(`the script did not finish within ${limit / 1000} s`)), limit)),
       ]);
+    let value: unknown;
+    try {
+      try {
+        value = await run(code);
+      } catch (e: any) {
+        // Agents often write a script body with a top-level `return`. That is a syntax
+        // error, so nothing ran: run it again as the body of an async function.
+        if (!/return not in function|illegal return/i.test(String(e?.message || e))) throw e;
+        value = await run(`(async () => {\n${code}\n})()`);
+      }
     } catch (e: any) {
       const msg = String(e?.message || e).replace(/^page\.evaluate:\s*/, "").split("\nCall log:")[0];
       return fail(`JavaScript error (${world} world): ${msg}`);

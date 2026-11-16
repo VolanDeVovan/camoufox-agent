@@ -56,9 +56,9 @@ export const computerTools: ToolDef[] = [
   {
     name: "javascript_tool",
     description:
-      'Run JavaScript in a tab and return the value of the last expression (promises are awaited; the value must be JSON-serializable, DOM nodes cannot be returned). world "main" (default) is the page\'s own world, as in Claude in Chrome; "isolated" cannot be seen by the page and sees no page-defined globals. The result is returned as is: this is the one tool whose output is NOT masked, so do not print cookies or tokens you do not need. Do not call alert / confirm / prompt without arming handle_dialog.',
+      'Run JavaScript in a tab and return the value of the last expression, or of a top-level `return` (promises are awaited; the value must be JSON-serializable, DOM nodes cannot be returned). world "main" (default) is the page\'s own world; "isolated" cannot be seen by the page and sees no page-defined globals. The result is returned as is: this is the one tool whose output is NOT masked, so do not print cookies or tokens you do not need. Do not call alert / confirm / prompt without arming handle_dialog.',
     shape: {
-      text: z.string().describe("JavaScript. The value of the last expression is the result."),
+      text: z.string().describe("JavaScript. The result is the value of the last expression, or of a top-level return."),
       world: z.enum(["main", "isolated"]).optional(),
       timeout_s: z.number().min(1).max(60).optional().describe("Seconds before giving up (default 20)."),
       max_chars: z.number().int().positive().optional().describe("Cap on the result size (default 20000)."),

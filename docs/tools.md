@@ -13,6 +13,9 @@
 Every page tool takes an optional `tabId`. Differences from Claude in Chrome: it is the
 agent's own browser, `find` is a literal text match, and there is no GIF recording.
 
+`javascript_tool` returns the value of the last expression; a script body with a
+top-level `return` is a syntax error as is, so it is run again inside an async function.
+
 ## Refs
 
 `read_page` lists interactive elements and headings, each interactive one with a ref:

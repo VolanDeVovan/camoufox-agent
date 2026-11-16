@@ -208,6 +208,9 @@ test("javascript_tool: main world sees the page, isolated does not", async () =>
   expect((await s.call("javascript_tool", { text: "typeof window.pageVar", world: "isolated" })).text).toMatch(/\nundefined$/);
   expect((await s.call("javascript_tool", { text: "const a = [1, 2]; a.map(x => x * 2)" })).text).toContain("[\n  2,\n  4\n]");
   expect((await s.call("javascript_tool", { text: "fetch('/landed').then(r => r.status)" })).text).toMatch(/\n200$/);
+  // A top-level return (a script body) works too.
+  expect((await s.call("javascript_tool", { text: "const v = window.pageVar; return v + 1" })).text).toMatch(/\n43$/);
+  expect((await s.call("javascript_tool", { text: "return await fetch('/landed').then(r => r.status)" })).text).toMatch(/\n200$/);
   const err = await s.call("javascript_tool", { text: "nope.nope" });
   expect(err.isError).toBe(true);
   expect(err.text).toContain("nope is not defined");
