@@ -30,7 +30,12 @@ its own tabs.
 - A browser is launched on first use of its profile. There is no launch tool.
 - The very first launch on a machine downloads Camoufox (about 1.3 GB) in the
   background; tools answer with the progress until it is ready.
-- When a session ends, its tabs are closed. Browsers stay for the other sessions.
+- When a session ends, its blank tabs are closed and the others stay open, free: owned
+  by no session, like a tab the user opens by hand. What the session set up in them
+  (request blocking, dialog answers) is undone and what was captured (console,
+  network) is forgotten. tabs_context lists free tabs; a session takes one by passing
+  its tabId. Sessions have no identity that survives a restart, so the agent picks the
+  tab by what it shows.
 - After the last session leaves, the daemon waits ten minutes, closes every browser
   and exits. `CAMOUFOX_AGENT_IDLE_MS` changes the wait.
 - Browsers are closed on every exit path of the daemon, a kill included.

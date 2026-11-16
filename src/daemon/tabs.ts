@@ -42,6 +42,10 @@ export class Tab {
   closedByAgent = false;
   /** Opened blank because a tool needed a tab and the session had none; tabs_create takes it. */
   implicit = false;
+  /** When an agent last used the tab. */
+  lastUsed = Date.now();
+  /** When the session that owned it ended (the tab stayed open, owned by nobody). */
+  freedAt: number | null = null;
   private netListeners = new Set<NetListener>();
   /** Calls on one tab run one at a time. */
   queue: Promise<unknown> = Promise.resolve();
@@ -209,8 +213,8 @@ export class TabRegistry {
     return [...this.tabs.values()].filter((t) => t.owner === session.id);
   }
 
-  /** Tabs the user opened by hand: they belong to no session until one adopts them. */
-  unowned(): Tab[] {
+  /** Tabs no session owns (left by an ended session, or opened by hand): any session may take one. */
+  free(): Tab[] {
     return [...this.tabs.values()].filter((t) => t.owner === null && !t.pristine);
   }
 
@@ -328,7 +332,8 @@ export class TabRegistry {
       if (tab.owner === null) {
         tab.owner = session.id;
         tab.pristine = false;
-        session.notices.push(`Adopted tab ${tab.id} (it was opened by hand in the "${tab.profile.name}" window).`);
+        tab.freedAt = null;
+        session.notices.push(`Took tab ${tab.id}: it is this session's tab now.`);
       }
       session.lostActive = null;
     } else {
@@ -353,6 +358,7 @@ export class TabRegistry {
       }
     }
     session.activeTab = tab.id;
+    tab.lastUsed = Date.now();
     this.select(tab);
     return tab;
   }
@@ -392,8 +398,32 @@ export class TabRegistry {
     await tab.page.close().catch(() => {});
   }
 
-  /** An MCP server exited: its tabs are closed; browsers stay for other sessions. */
+  /**
+   * An MCP server exited. Its blank tabs are closed; the others stay open, owned by
+   * nobody, for the user and for a later session to take. What the session set up in
+   * them (request blocking, dialog answers) is undone, and what was captured in them
+   * (console, network) is forgotten: the next owner is another session.
+   */
   async closeSession(session: Session): Promise<void> {
-    for (const tab of this.of(session)) await this.close(tab).catch(() => {});
+    for (const tab of this.of(session)) {
+      if (tab.page.isClosed() || /^(about:blank)?$/.test(tab.url())) await this.close(tab).catch(() => {});
+      else await this.release(tab);
+    }
+  }
+
+  private async release(tab: Tab): Promise<void> {
+    tab.owner = null;
+    tab.implicit = false;
+    tab.freedAt = Date.now();
+    tab.dialogOnce = null;
+    tab.dialogRule = null;
+    if (tab.blocking) {
+      const { handler } = tab.blocking;
+      tab.blocking = null;
+      await tab.page.unroute("**/*", handler).catch(() => {});
+    }
+    tab.console = [];
+    tab.requests = [];
+    tab.events = [];
   }
 }

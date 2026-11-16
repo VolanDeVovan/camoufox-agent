@@ -5,7 +5,7 @@ export const tabTools: ToolDef[] = [
   {
     name: "tabs_context",
     description:
-      "List this session's tabs across all profiles (id, profile, title, url, which is active) and every profile on disk (running or stopped). Call it first in a browsing task. Tab ids are stable and never reused.",
+      "List this session's tabs across all profiles (id, profile, title, url, which is active), the free tabs (owned by no session: left by an ended session or opened by the user; pass tabId to take one), and every profile on disk (running or stopped). Call it first in a browsing task. Tab ids are stable and never reused.",
     shape: {
       createIfEmpty: z.boolean().optional().describe("Open a blank tab in the default profile when this session has none."),
     },

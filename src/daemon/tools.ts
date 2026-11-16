@@ -54,6 +54,13 @@ export async function tabLine(tab: Tab, active: boolean): Promise<string> {
   return `  ${String(tab.id).padEnd(3)} ${tab.profile.name.padEnd(12)} ${JSON.stringify(title)}  ${maskUrl(tab.url())}${active ? "   <- active" : ""}`;
 }
 
+function ago(at: number): string {
+  const min = Math.floor((Date.now() - at) / 60000);
+  if (min < 1) return "under a minute";
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${min % 60} min`;
+}
+
 export async function tabsContext(call: Call): Promise<string> {
   const { daemon, session } = call;
   const mine = daemon.tabs.of(session);
@@ -67,10 +74,10 @@ export async function tabsContext(call: Call): Promise<string> {
   lines.push("tabs (this session):");
   if (!mine.length) lines.push("  (none; tabs_create opens one, and any page tool opens a blank tab in the default profile)");
   for (const t of mine) lines.push(await tabLine(t, t.id === session.activeTab));
-  const loose = daemon.tabs.unowned();
-  if (loose.length) {
-    lines.push("tabs opened by hand (no session owns them; pass the id as tabId to adopt one):");
-    for (const t of loose) lines.push(await tabLine(t, false));
+  const free = daemon.tabs.free();
+  if (free.length) {
+    lines.push("free tabs (no session owns them: left by an ended session, or opened by the user; pass tabId to take one):");
+    for (const t of free) lines.push(`${await tabLine(t, false)}   (${t.freedAt !== null ? "left by a session" : "opened by the user"}, unused for ${ago(t.lastUsed)})`);
   }
   const profiles = daemon.profiles.list();
   lines.push(
@@ -171,7 +178,8 @@ tool("close_browser", async (call, args) => {
   const closed: string[] = [];
   const kept: string[] = [];
   for (const profile of profiles) {
-    const others = daemon.tabs.inProfile(profile).some((t) => t.owner !== null && t.owner !== session.id);
+    // Another session's tab, or a free one (the user may be reading it), keeps the browser.
+    const others = daemon.tabs.inProfile(profile).some((t) => t.owner !== session.id && !t.pristine);
     if (others) {
       for (const t of mine.filter((t) => t.profile === profile)) await daemon.tabs.close(t);
       kept.push(profile.name);
@@ -184,6 +192,6 @@ tool("close_browser", async (call, args) => {
   session.lostActive = null;
   const parts: string[] = [];
   if (closed.length) parts.push(`Closed the browser of: ${closed.join(", ")}.`);
-  if (kept.length) parts.push(`Closed this session's tabs in ${kept.join(", ")}; that browser stays open because another session uses it.`);
+  if (kept.length) parts.push(`Closed this session's tabs in ${kept.join(", ")}; that browser stays open because another session or a free tab uses it.`);
   return text(parts.join(" "));
 }, 60000);

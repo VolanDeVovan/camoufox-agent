@@ -83,7 +83,7 @@ test("a page with a busy main thread does not block opening tabs or wedge the se
   await sleep(Math.max(0, started + 9000 - Date.now()));
   const ctx = (await s.call("tabs_context")).text;
   expect(ctx).not.toContain("about:blank");
-  expect(ctx).not.toContain("opened by hand");
+  expect(ctx).not.toContain("free tabs");
   expect(ctx).toMatch(/\/callback\s+<- active/);
 });
 

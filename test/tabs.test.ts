@@ -109,7 +109,7 @@ test("close_browser() keeps a browser another session still uses", async () => {
   await a.call("tabs_create", { url: site.base + "/" }); // default, shared with b
   const r = await a.call("close_browser", {});
   expect(r.text).toMatch(/other-id/);
-  expect(r.text).toMatch(/stays open because another session uses it/);
+  expect(r.text).toMatch(/stays open because another session or a free tab uses it/);
   expect(browsersOn(join(dir, "default"))).toHaveLength(1);
   expect(browsersOn(join(dir, "other-id"))).toHaveLength(0);
   expect((await b.call("tabs_context")).text).toContain("/whoami");
@@ -135,16 +135,24 @@ test("a profile held by a process that is not ours is an error that says so", as
   expect(browsersOn(join(dir, "held"))).toHaveLength(0);
 });
 
-test("when a session ends its tabs are closed and the browser stays for the others", async () => {
+test("when a session ends its tabs stay open, free, and a later session takes one clean", async () => {
   const c = await startSession({ profilesDir: dir });
   const opened = await c.call("tabs_create", { url: site.base + "/" });
   const id = Number(opened.text.match(/Opened tab (\d+)/)![1]);
+  await c.call("block_requests", { url_patterns: ["*/blocked*"] });
+  const blank = Number((await c.call("tabs_create", {})).text.match(/Opened tab (\d+)/)![1]);
   await c.close();
   await sleep(800);
   expect(browsersOn(join(dir, "default"))).toHaveLength(1);
-  // The tab is gone for everyone: b cannot adopt it as a leftover.
-  const r = await b.call("navigate", { url: site.base + "/", tabId: id });
-  expect(r.isError).toBe(true);
-  expect(r.text).toContain("does not exist");
-  expect((await b.call("tabs_context")).text).toContain("/whoami");
+  const ctx = (await b.call("tabs_context")).text;
+  expect(ctx).toMatch(new RegExp(`free tabs[^]*\\n\\s+${id}\\s+default.*left by a session`));
+  // The blank tab is not kept.
+  expect(ctx).not.toMatch(new RegExp(`^\\s+${blank}\\s`, "m"));
+  // Taking it: nothing the ended session captured or set up comes along.
+  const net = await b.call("read_network_requests", { tabId: id });
+  expect(net.text).toContain(`Took tab ${id}`);
+  expect(net.text).not.toContain(site.base + "/");
+  await b.call("navigate", { url: site.base + "/blocked-not", tabId: id });
+  expect(site.hits.some((h) => h.url === "/blocked-not")).toBe(true);
+  await b.call("tabs_close", { tabId: id });
 });

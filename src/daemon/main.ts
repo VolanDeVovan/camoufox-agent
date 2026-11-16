@@ -211,7 +211,7 @@ async function main(): Promise<void> {
       if (sessions.get(s.id) !== s) return;
       sessions.delete(s.id);
       s.socket = null;
-      // Its tabs are closed; browsers stay for other sessions.
+      // Its tabs stay open, free for the user and for later sessions.
       void daemon.tabs.closeSession(s).finally(checkIdle);
     };
     conn.on("close", gone);
