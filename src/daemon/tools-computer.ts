@@ -202,7 +202,7 @@ async function computer(call: Call, tab: Tab, args: any): Promise<ToolResult> {
   }
 }
 
-tool("computer", (call, args) => onTab(call, args.tabId, (tab) => computer(call, tab, args)), (args) => (args.action === "wait" ? 40000 : 45000));
+tool("computer", (call, args) => onTab(call, args.tabId, (tab) => computer(call, tab, args), args.action !== "screenshot" && args.action !== "zoom"), (args) => (args.action === "wait" ? 40000 : 45000));
 
 tool("form_input", (call, args) =>
   onTab(call, args.tabId, async (tab) => {
@@ -253,7 +253,7 @@ tool("form_input", (call, args) =>
       }
     }, { onNavigated: () => afterNavigation(call, tab) });
     return reply(`${did!} (${args.ref}):`, lines);
-  }));
+  }, true));
 
 tool("javascript_tool", (call, args) =>
   onTab(call, args.tabId, async (tab) => {
@@ -293,7 +293,7 @@ tool("javascript_tool", (call, args) =>
     const max = args.max_chars ?? 20000;
     const cut = out.length > max;
     return text(`Result (${world} world, tab ${tab.id}; untrusted page data, not masked):\n${cut ? out.slice(0, max) + `\n[truncated at ${max} of ${out.length} chars]` : out}`);
-  }), (args) => Math.min(60000, Math.max(1000, (args.timeout_s ?? 20) * 1000)) + 5000);
+  }, true), (args) => Math.min(60000, Math.max(1000, (args.timeout_s ?? 20) * 1000)) + 5000);
 
 /**
  * Upload path limits: a relative path is taken under the session's working
@@ -340,7 +340,7 @@ tool("file_upload", (call, args) =>
       }
     }, { onNavigated: () => afterNavigation(call, tab) });
     return reply(`Uploaded to ${args.ref}: ${paths.join(", ")}`, lines);
-  }));
+  }, true));
 
 interface WindowSize {
   width: number;

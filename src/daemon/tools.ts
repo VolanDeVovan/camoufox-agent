@@ -30,19 +30,19 @@ export function tool(name: string, handler: Handler, deadline?: number | ((args:
   if (deadline !== undefined) deadlines[name] = deadline;
 }
 
-/** Run a handler body with the tab's calls serialized. */
-export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>): Promise<T> {
+/**
+ * Run a handler body with the tab's calls serialized. `acts`: the body may make the
+ * page open a dialog (a click, a key, a navigation, a script), which is then the
+ * agent's to answer; a reading call does not claim the page's own dialogs.
+ */
+export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>, acts = false): Promise<T> {
   const tab = await call.daemon.tabs.resolve(call.session, tabId);
   const run = tab.queue.then(async () => {
     // The deadline counts the wait in the queue too. A call already reported as
     // failed must not act later: the agent would repeat it and the action happen twice.
     if (call.cancelled) throw new ToolError("cancelled: the call's deadline passed while it waited for the tab.");
-    if (await tab.dialogOpen()) {
-      throw new ToolError(
-        `Tab ${tab.id} shows a ${tab.pendingDialog!.what} that no agent action opened, so it is left to the user; the page does nothing until it is answered. Wait for the user, or answer it with handle_dialog(accept=...) when the answer is clearly what the user wants.`,
-      );
-    }
-    return tab.act(() => body(tab));
+    await refuseOnDialog(tab);
+    return acts ? tab.act(() => body(tab)) : body(tab);
   });
   let release: NodeJS.Timeout;
   tab.queue = Promise.race([run.catch(() => {}), new Promise((r) => (release = setTimeout(r, QUEUE_HOLD_MS)))]).finally(() => clearTimeout(release));
@@ -51,7 +51,17 @@ export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab
 
 /** For passive tools (reading captures, waiting): the tab, without taking its queue. */
 export async function withTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>): Promise<T> {
-  return body(await call.daemon.tabs.resolve(call.session, tabId));
+  const tab = await call.daemon.tabs.resolve(call.session, tabId);
+  await refuseOnDialog(tab);
+  return body(tab);
+}
+
+/** A dialog left to the user freezes the page: say so instead of acting on it or timing out. */
+async function refuseOnDialog(tab: Tab): Promise<void> {
+  if (!(await tab.dialogOpen())) return;
+  throw new ToolError(
+    `Tab ${tab.id} shows a ${tab.pendingDialog!.what} that no agent action opened (or one that came more than 2 s after it), so it is left to the user; the page does nothing until it is answered. Wait for the user, or answer it with handle_dialog(accept=...) when the answer is clearly what the user wants. (If the user has answered it, the page is busy: try again.)`,
+  );
 }
 
 export async function tabLine(tab: Tab, active: boolean): Promise<string> {
@@ -190,7 +200,7 @@ tool("navigate", (call, args) =>
     const out = [`Tab ${tab.id} is at ${maskUrl(tab.url())}${title ? ` (${title})` : ""}`];
     for (const extra of await afterNavigation(call, tab)) out.push(extra);
     return text(out.join("\n"));
-  }), 60000);
+  }, true), 60000);
 
 tool("close_browser", async (call, args) => {
   const { daemon, session } = call;

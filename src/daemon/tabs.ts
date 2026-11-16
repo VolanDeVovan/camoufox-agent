@@ -79,6 +79,7 @@ export class Tab {
     } finally {
       this.acting--;
       this.agentAt = Date.now();
+      this.lastUsed = this.agentAt;
     }
   }
 
@@ -453,8 +454,11 @@ export class TabRegistry {
       this.byPage.delete(tab.page);
       // A fresh Tab object for the same page: the old id is never reused.
       tab.closedByAgent = true;
+      // A dialog left to the user would hold the navigation; a beforeunload it raises is ours.
+      await tab.pendingDialog?.dialog.dismiss().catch(() => {});
+      tab.pendingDialog = null;
       try {
-        await tab.page.goto("about:blank", { waitUntil: "commit", timeout: 5000 });
+        await tab.act(() => tab.page.goto("about:blank", { waitUntil: "commit", timeout: 5000 }));
       } catch {}
       if (tab.blocking) await tab.page.unroute("**/*", tab.blocking.handler).catch(() => {});
       tab.page.removeAllListeners();
