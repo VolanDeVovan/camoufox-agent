@@ -1,3 +1,4 @@
+import { antibotTools } from "./antibot.js";
 import { computerTools } from "./computer.js";
 import type { ToolDef } from "./defs.js";
 import { httpTools } from "./http.js";
@@ -7,4 +8,4 @@ import { storageTools } from "./storage.js";
 import { tabTools } from "./tabs.js";
 import { waitTools } from "./wait.js";
 
-export const allTools: ToolDef[] = [...tabTools, ...readTools, ...computerTools, ...waitTools, ...networkTools, ...storageTools, ...httpTools];
+export const allTools: ToolDef[] = [...tabTools, ...readTools, ...computerTools, ...waitTools, ...networkTools, ...storageTools, ...httpTools, ...antibotTools];

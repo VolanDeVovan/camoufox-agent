@@ -6,3 +6,4 @@ import "./tools-wait.js";
 import "./tools-network.js";
 import "./tools-storage.js";
 import "./tools-http.js";
+import "./tools-antibot.js";
