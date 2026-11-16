@@ -88,12 +88,18 @@ export const computerTools: ToolDef[] = [
   {
     name: "browser_batch",
     description:
-      "Run several tool calls in order in one round trip. Stops at the first error and says which steps did not run. Each step is {tool, args} with the same arguments as the tool itself.",
+      "Run several tool calls in one round trip, in order, and get every step's reply (screenshots included). Use it whenever the next steps are predictable: fill a form with form_input, click submit, read_page. Stops at the first error and says which steps did not run. Coordinates are pixels of the last screenshot taken, so do not put a screenshot before coordinate steps in the same batch.",
     shape: {
       actions: z
-        .array(z.object({ tool: z.string().describe("Tool name."), args: z.record(z.string(), z.any()).optional().describe("That tool's arguments.") }))
+        .array(
+          z.object({
+            tool: z.string().describe("Any tool except browser_batch."),
+            args: z.record(z.string(), z.any()).optional().describe("Exactly the arguments the tool takes on its own."),
+          }),
+        )
         .min(1)
-        .max(30),
+        .max(30)
+        .describe('Steps, e.g. [{"tool": "form_input", "args": {"ref": "e3", "value": "me@example.com"}}, {"tool": "computer", "args": {"action": "left_click", "ref": "e5"}}].'),
     },
   },
 ];
