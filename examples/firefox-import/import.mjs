@@ -392,7 +392,7 @@ if (opts.list) {
 if (resolve(opts.source) === resolve(opts.target)) fail("source and target are the same directory");
 if (!existsSync(opts.target)) fail(`target profile ${opts.target} does not exist`);
 const holder = lockHolder(opts.target);
-if (holder !== null) fail(`the target profile is in use${holder > 0 ? ` (pid ${holder})` : ""}: close its browser first (close_browser). A profile may only be written while its browser is not running.`);
+if (holder !== null) fail(`the target profile is in use${holder > 0 ? ` (pid ${holder})` : ""}: close its browser first (close its tabs, or its window). A profile may only be written while its browser is not running.`);
 
 const containerId = resolveContainer(opts.source, opts.container);
 const scratch = mkdtempSync(join(tmpdir(), "firefox-import-"));

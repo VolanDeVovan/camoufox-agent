@@ -2,7 +2,7 @@
 // cross-profile hint; cookies and web_storage with masking.
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { browsersOn, cleanupTemps, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
+import { browsersOn, cleanupTemps, closeTabsIn, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
 
 let site: Fixture;
 let s: TestSession;
@@ -65,7 +65,7 @@ test("cookies and web_storage mask values unless revealed", async () => {
 });
 
 test("a stopped profile is read from disk, session cookies included", async () => {
-  await s.call("close_browser", { profile: "shop-admin" });
+  await closeTabsIn(s, "shop-admin");
   expect(await waitFor(() => browsersOn(join(dir, "shop-admin")).length === 0)).toBe(true);
   const r = await s.call("find_session", { site: "127.0.0.1" });
   expect(r.text).toMatch(/shop-admin\n\s+127\.0\.0\.1\s+3 cookies, auth-looking: sessionid, csrftoken/);

@@ -45,10 +45,4 @@ export const tabTools: ToolDef[] = [
       tabId,
     },
   },
-  {
-    name: "close_browser",
-    description:
-      "Close a browser. With `profile`: that profile's browser, for every session using it. Without: the browsers this session has tabs in (a browser another session still uses stays open; only this session's tabs in it are closed). Profiles keep their logins on disk.",
-    shape: { profile: profileArg.describe("Profile whose browser to close.") },
-  },
 ];

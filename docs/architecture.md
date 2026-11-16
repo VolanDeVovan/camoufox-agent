@@ -43,9 +43,11 @@ tabs, and all see the free ones (see below).
   the page) note the last trusted pointer, key, wheel or touch event of the top document, and
   the sweep reads it once a minute. Input inside an iframe is not seen. A tab marked
   `keep` (tabs_create / tabs_update) is never closed for being unused; a `label` says
-  what a tab is for, and both stay with the tab when its session ends. A browser whose last
-  tab goes is closed with it, and with no session connected a browser holding nothing
-  but blank tabs is closed at once.
+  what a tab is for, and both stay with the tab when its session ends.
+- A browser closes with its last tab, whoever closes it (an agent, the idle timer, the
+  user), and with no session connected a browser holding nothing but its blank first
+  page is closed at once. There is no tool to close a browser: closing tabs is enough,
+  and a browser shared by sessions and the user is not one agent's to close.
 - The daemon lives while it has a session, a browser or the browser download; with
   none it exits a few seconds later. A newer version asks it to exit once no session is connected: its
   browsers close then, free tabs included, so that the new daemon can open the

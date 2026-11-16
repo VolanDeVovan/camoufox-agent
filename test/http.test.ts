@@ -1,7 +1,7 @@
 // Group http: the profile's cookies go only to their own origin, also across redirects.
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { browsersOn, cleanupTemps, fixture, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
+import { browsersOn, cleanupTemps, closeTabsIn, fixture, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
 
 let a: Fixture; // the site the profile is logged in to
 let b: Fixture; // another origin
@@ -113,7 +113,7 @@ test("fetch_markdown and extract_table", async () => {
 });
 
 test("a stopped profile's cookies are read from disk, session cookies included", async () => {
-  await s.call("close_browser", { profile: "default" });
+  await closeTabsIn(s, "default");
   expect(await waitFor(() => browsersOn(join(dir, "default")).length === 0)).toBe(true);
   await s.call("http_request", { url: a.base + "/echo" });
   expect(lastHit(a).headers.cookie).toContain("sessionid=SECRET-A");

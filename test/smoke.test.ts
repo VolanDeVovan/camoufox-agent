@@ -11,7 +11,6 @@ beforeAll(async () => {
   s = await startSession({ profilesDir: tempDir() });
 });
 afterAll(async () => {
-  await s.call("close_browser", {}).catch(() => {});
   await s.close();
   await site.close();
   await cleanupTemps();
@@ -20,7 +19,7 @@ afterAll(async () => {
 test("lists its tools", async () => {
   const { tools } = await s.client.listTools();
   const names = tools.map((t) => t.name);
-  for (const expected of ["tabs_context", "tabs_create", "tabs_close", "navigate", "close_browser"]) expect(names).toContain(expected);
+  for (const expected of ["tabs_context", "tabs_create", "tabs_close", "tabs_update", "navigate"]) expect(names).toContain(expected);
 });
 
 test("an unknown argument is an error, not silently dropped", async () => {

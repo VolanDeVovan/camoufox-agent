@@ -20,7 +20,7 @@ type NetListener = (entry: NetEntry, phase: "request" | "response" | "finished")
 
 export class Tab {
   owner: string | null;
-  /** A blank tab nobody has used yet (a fresh browser's first page, or a parked one). */
+  /** A fresh browser's first page, blank, until a session takes it. */
   pristine = false;
   console: ConsoleEntry[] = [];
   requests: NetEntry[] = [];
@@ -317,7 +317,7 @@ export class TabRegistry {
   }
 
   private async openIn(profile: RunningProfile, session: Session): Promise<Tab> {
-    // A blank tab nobody uses (the browser's first page, or a parked one) is taken first.
+    // A fresh browser's blank first page is taken first.
     const spare = this.inProfile(profile).find((t) => t.pristine && t.owner === null && !t.page.isClosed() && t.url() === "about:blank");
     if (spare) {
       spare.pristine = false;
@@ -456,35 +456,15 @@ export class TabRegistry {
     return `Your tabs: ${lines.join("; ")}.`;
   }
 
-  /**
-   * Close a tab. The last tab of a window is parked as a blank spare instead: closing
-   * it would close the window, and the next tab would need a new one (a focus risk).
-   */
+  /** Close a tab. The browser closes with its last tab, as Firefox does with its last window. */
   async close(tab: Tab): Promise<void> {
-    const others = tab.profile.context.pages().filter((p) => p !== tab.page && !p.isClosed());
-    if (!others.length && !tab.profile.closing) {
-      const owner = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
-      if (owner?.activeTab === tab.id) owner.activeTab = null;
-      this.tabs.delete(tab.id);
-      this.byPage.delete(tab.page);
-      // A fresh Tab object for the same page: the old id is never reused.
-      tab.closedByAgent = true;
-      // A dialog left to the user would hold the navigation; a beforeunload it raises is ours.
-      await tab.pendingDialog?.dialog.dismiss().catch(() => {});
-      tab.pendingDialog = null;
-      try {
-        await tab.act(() => tab.page.goto("about:blank", { waitUntil: "commit", timeout: 5000 }));
-      } catch {}
-      if (tab.blocking) await tab.page.unroute("**/*", tab.blocking.handler).catch(() => {});
-      tab.page.removeAllListeners();
-      if (!tab.page.isClosed()) this.register(tab.page, tab.profile, null).pristine = true;
-      return;
-    }
     tab.closedByAgent = true;
     this.tabs.delete(tab.id);
     const owner = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (owner?.activeTab === tab.id) owner.activeTab = null;
-    await tab.page.close().catch(() => {});
+    const others = tab.profile.context.pages().filter((p) => p !== tab.page && !p.isClosed());
+    if (!others.length && !tab.profile.closing) await this.daemon.profiles.close(tab.profile.name, tab.owner);
+    else await tab.page.close().catch(() => {});
   }
 
   /**
@@ -540,10 +520,7 @@ export class TabRegistry {
       } else session.notices.push(what);
     }
     this.daemon.log(`tab ${tab.id} (${tab.profile.name}) expired`);
-    const others = tab.profile.context.pages().filter((p) => p !== tab.page && !p.isClosed());
-    // Its window's last tab: the browser goes too (a parked blank tab would only expire next).
-    if (!others.length) await this.daemon.profiles.close(tab.profile.name, session?.id ?? null);
-    else await this.close(tab);
+    await this.close(tab);
   }
 
   /**

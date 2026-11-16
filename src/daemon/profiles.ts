@@ -248,9 +248,7 @@ export class ProfileManager {
   private async shut(name: string, entry: Entry, profile: RunningProfile, by: string | null): Promise<void> {
     this.daemon.tabs.dropProfile(
       profile,
-      by === null
-        ? `The browser of profile "${name}" was closed; your tabs in it are gone.`
-        : `The browser of profile "${name}" was closed by another session (close_browser); your tabs in it are gone. The next use of the profile relaunches it.`,
+      `The browser of profile "${name}" was closed; your tabs in it are gone. The next use of the profile relaunches it.`,
       by,
     );
     const pid = browserPid(profile.dir);

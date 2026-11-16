@@ -92,7 +92,6 @@ test("no tool shows a secret unless asked to reveal it", async () => {
   await run("navigate back", "navigate", { url: "back" });
   await run("batch", "browser_batch", { actions: [{ tool: "navigate", args: { url } }, { tool: "read_page", args: {} }, { tool: "cookies", args: {} }] });
   await run("tabs_close", "tabs_close");
-  await run("close_browser", "close_browser");
 
   for (const [label, text] of replies) {
     for (const [name, secret] of Object.entries(SECRETS)) expect(text.includes(secret), `${label} leaked ${name}:\n${text.slice(0, 600)}`).toBe(false);

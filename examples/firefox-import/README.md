@@ -27,9 +27,9 @@ node import.mjs --firefox-profile ~/.mozilla/firefox/xxxx.default \
 | `--dry-run` | Count what would be copied, write nothing |
 
 Before the first import, let the agent open the target profile once
-(`tabs_create(profile="work")`) and close it (`close_browser(profile="work")`): the
-cookie database then has the schema of the browser that will read it. The script
-refuses to run while the target's browser is running.
+(`tabs_create(profile="work")`) and close that tab (`tabs_close`; the browser closes
+with its last tab): the cookie database then has the schema of the browser that will
+read it. The script refuses to run while the target's browser is running.
 
 ## What it does
 

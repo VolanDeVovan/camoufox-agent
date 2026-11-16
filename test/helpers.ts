@@ -145,6 +145,12 @@ export function daemonPids(profilesDir: string): number[] {
     .map((l) => Number(l.trim().split(/\s+/)[0]));
 }
 
+/** Close a session's tabs in a profile; the browser closes with its last tab. */
+export async function closeTabsIn(s: TestSession, profile: string): Promise<void> {
+  const ctx = (await s.call("tabs_context")).text.split("free tabs")[0];
+  for (const m of ctx.matchAll(new RegExp(`^\\s+(\\d+)\\s+${profile}\\s`, "gm"))) await s.call("tabs_close", { tabId: Number(m[1]) });
+}
+
 export async function waitFor(check: () => boolean | Promise<boolean>, ms = 10000, step = 100): Promise<boolean> {
   const deadline = Date.now() + ms;
   for (;;) {

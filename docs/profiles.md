@@ -12,7 +12,7 @@ $XDG_DATA_HOME/camoufox-agent/profiles/<name>/     (~/.local/share/... by defaul
 - The agent uses `default` (or `--default-profile`) unless it needs another identity.
 - A name that does not exist is created on first use, and the reply says so and lists
   the existing names, so a typo does not silently fork an identity.
-- Names match `[a-z0-9][a-z0-9-]*`. `temp` is a throwaway profile, deleted on close.
+- Names match `[a-z0-9][a-z0-9-]*`. `temp` is a throwaway profile, deleted when its browser closes (with its last tab).
 - There is no delete tool: removing a profile is `rm -rf` of its directory.
 - Session restore is on, so cookies without an expiry survive a browser restart.
 

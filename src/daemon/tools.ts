@@ -132,7 +132,7 @@ tool("tabs_create", async (call, args) => {
   const { tab, created } = await call.daemon.tabs.open(call.session, profileName);
   const out: string[] = [];
   if (created) out.push(created);
-  if (profileName === TEMP_PROFILE) out.push('"temp" is a throwaway profile: it is deleted when its browser closes.');
+  if (profileName === TEMP_PROFILE) out.push('"temp" is a throwaway profile: it is deleted when its browser closes, with its last tab.');
   let navError = "";
   if (args.url) {
     try {
@@ -201,35 +201,3 @@ tool("navigate", (call, args) =>
     for (const extra of await afterNavigation(call, tab)) out.push(extra);
     return text(out.join("\n"));
   }, true), 60000);
-
-tool("close_browser", async (call, args) => {
-  const { daemon, session } = call;
-  if (args.profile) {
-    const name = validateProfileName(args.profile);
-    const closed = await daemon.profiles.close(name, session.id);
-    return text(closed ? `Closed the browser of profile "${name}" (for every session).` : `Profile "${name}" was not running.`);
-  }
-  // Without a profile: the browsers this session has tabs in; browsers other sessions still use stay open.
-  const mine = daemon.tabs.of(session);
-  const profiles = [...new Set(mine.map((t) => t.profile))];
-  if (!profiles.length) return text("This session has no tabs, so there is no browser to close.");
-  const closed: string[] = [];
-  const kept: string[] = [];
-  for (const profile of profiles) {
-    // Another session's tab, or a free one (the user may be reading it), keeps the browser.
-    const others = daemon.tabs.inProfile(profile).some((t) => t.owner !== session.id && !t.pristine);
-    if (others) {
-      for (const t of mine.filter((t) => t.profile === profile)) await daemon.tabs.close(t);
-      kept.push(profile.name);
-    } else {
-      await daemon.profiles.close(profile.name, session.id);
-      closed.push(profile.name);
-    }
-  }
-  session.activeTab = null;
-  session.lostActive = null;
-  const parts: string[] = [];
-  if (closed.length) parts.push(`Closed the browser of: ${closed.join(", ")}.`);
-  if (kept.length) parts.push(`Closed this session's tabs in ${kept.join(", ")}; that browser stays open because another session or a free tab uses it.`);
-  return text(parts.join(" "));
-}, 60000);

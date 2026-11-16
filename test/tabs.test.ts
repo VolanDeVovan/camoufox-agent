@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { browsersOn, cleanupTemps, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
+import { browsersOn, cleanupTemps, closeTabsIn, fixture, sleep, startSession, tempDir, waitFor, type Fixture, type TestSession } from "./helpers.js";
 
 let site: Fixture;
 let dir: string;
@@ -90,29 +90,21 @@ test("a tab that closes behind the session is reported, not silently switched", 
   expect(again.isError).toBe(false);
 });
 
-test("close_browser(profile) closes it for everyone and tells the other session", async () => {
-  const r = await a.call("close_browser", { profile: "default" });
-  expect(r.text).toContain('Closed the browser of profile "default"');
+test("a browser closes with its last tab, not while another session has one there", async () => {
+  await closeTabsIn(a, "default");
+  // b still has a tab in default: the browser stays.
+  expect(browsersOn(join(dir, "default"))).toHaveLength(1);
+  expect((await b.call("tabs_context")).text).toContain("/whoami");
+  await closeTabsIn(a, "other-id");
+  expect(await waitFor(() => browsersOn(join(dir, "other-id")).length === 0)).toBe(true);
+  await closeTabsIn(b, "default");
   expect(await waitFor(() => browsersOn(join(dir, "default")).length === 0)).toBe(true);
-  const told = await b.call("navigate", { url: site.base + "/" });
-  expect(told.isError).toBe(true);
-  expect(told.text).toContain("closed by another session");
 });
 
 test("logins survive a browser restart, session cookies included", async () => {
   await b.call("navigate", { url: site.base + "/whoami" });
   expect(lastCookie()).toContain("keep=1");
   expect(lastCookie()).toContain("sess=s3cr3t");
-});
-
-test("close_browser() keeps a browser another session still uses", async () => {
-  await a.call("tabs_create", { url: site.base + "/" }); // default, shared with b
-  const r = await a.call("close_browser", {});
-  expect(r.text).toMatch(/other-id/);
-  expect(r.text).toMatch(/stays open because another session or a free tab uses it/);
-  expect(browsersOn(join(dir, "default"))).toHaveLength(1);
-  expect(browsersOn(join(dir, "other-id"))).toHaveLength(0);
-  expect((await b.call("tabs_context")).text).toContain("/whoami");
 });
 
 test("temp is a throwaway profile", async () => {
@@ -122,7 +114,9 @@ test("temp is a throwaway profile", async () => {
   expect(existsSync(join(dir, "temp"))).toBe(false);
   const [pid] = browsersOn(join(tmpdir(), "camoufox-agent-temp-"));
   expect(pid).toBeGreaterThan(0);
-  await a.call("close_browser", { profile: "temp" });
+  // Its last tab closed, the browser goes and the profile with it.
+  await a.call("tabs_close");
+  expect(await waitFor(() => browsersOn(join(tmpdir(), "camoufox-agent-temp-")).length === 0)).toBe(true);
 });
 
 test("a profile held by a process that is not ours is an error that says so", async () => {
