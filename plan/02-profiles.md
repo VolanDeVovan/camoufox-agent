@@ -39,8 +39,11 @@ $XDG_DATA_HOME/camoufox-agent/profiles/<name>/     (~/.local/share/... by defaul
 
 - `--profiles-dir` overrides the root.
 - `mcp-identity.json`: the fingerprint is drawn on the profile's first launch and
-  stored here, so a profile is the same device every time (reference:
-  `src/identity.ts`).
+  stored here, so a profile is the same device every time. What is stored is the
+  launcher's own input (an fpgen fingerprint); the launcher derives fonts, voices, GPU
+  parameters and noise seeds from it deterministically, so two launches of a profile
+  produce the same Camoufox config.
+- `temp` lives in the system temp directory, not under the root.
 - Anything may write into a profile while its browser is not running (Firefox's
   `parent.lock` tells). That is the whole interface for filling profiles from outside;
   the server neither knows nor cares who did it. A worked example:

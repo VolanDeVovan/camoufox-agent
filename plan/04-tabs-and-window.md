@@ -18,13 +18,18 @@ tabs_context()
   profiles: default (running), golove (running), u-projects (running), rozetka-test
 ```
 
-- Every page tool acts on the session's active tab unless given `tabId`.
+- Every page tool acts on the session's active tab unless given `tabId`. The active
+  tab is the one the session last created or targeted; agents working in parallel in
+  one session pass `tabId` on every call.
 - Pages a site opens itself (popups, `target=_blank`, OAuth windows) belong to the
   session whose tab opened them, and are reported in the reply of that action.
 - A tab closed by the user disappears from the list; if it was active, the reply of the
   next call says so instead of silently switching.
-- Tabs the user opens by hand in the agent's window belong to no session; a session
-  can adopt one by id.
+- Tabs the user opens by hand in the agent's window belong to no session;
+  `tabs_context` lists them, and a session adopts one by passing its id as `tabId`.
+- Closing the last tab of a window would close the window, and the next tab would need
+  a new toplevel. The last tab is parked instead: emptied to `about:blank`, owned by
+  nobody, and handed to whoever opens the next tab in that profile.
 
 ## Opening tabs
 
@@ -40,12 +45,14 @@ window. R4 checks that `window.open` from the isolated world gives a tab, not a 
 2. Launch without `-foreground`. Playwright adds it to headed Firefox and it raises the
    window; the reference measured 5.4 s of stolen focus, 0 after dropping it.
 3. Tabs open inside the profile's window, never through `Browser.newPage` (above).
-4. The daemon never calls `page.bringToFront()` or anything else that activates a
-   window.
-5. Follow the agent: a tool that targets a tab other than the visible one selects it in
-   its window, so the user sees the tab the agent is on — only if R4 shows that
-   selecting a tab does not focus or raise the window. If it does, follow-the-agent is
-   dropped: the agent works in background tabs and the user switches tabs by hand.
+4. The daemon never activates a window (the one exception is rule 5, where it is
+   measured to be harmless).
+5. Follow the agent: a tool that targets a tab other than the one the daemon last
+   showed selects it in its window, so the user sees the tab the agent is on. R4
+   measured this on Wayland: selecting a tab neither focuses nor raises the window.
+   It is the one place `page.bringToFront()` is called, and only on Wayland; elsewhere
+   the agent works in background tabs and the user switches tabs by hand. A tab the
+   user selected by hand stays selected until the agent moves to another tab.
 6. Pages cannot steal focus on Wayland without an xdg-activation token.
 
 ## Compositor
@@ -66,6 +73,6 @@ throttling, or rendering screenshots without the compositor.
 ## Viewport
 
 `no_viewport` in headed mode: the page follows the window size as the user resizes it.
-The fingerprint's screen is at least as large as the largest display, so a resized
-window (by the user or `resize_window`) never exceeds its claimed screen (reference:
-`src/display.ts`).
+The fingerprint's screen is drawn by the launcher's own rule, bounded by the largest
+display, and kept coherent with the window by the launcher (`clampScreenToDisplay`,
+`clampWindowDimensions`); we add nothing on top.

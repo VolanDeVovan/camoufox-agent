@@ -8,7 +8,7 @@ Claude Code session A          Claude Code session B
   v                              v
 camoufox-agent (MCP server)    camoufox-agent (MCP server)     thin, one per session
   └──────────────┬───────────────┘
-                 │ unix socket: $XDG_RUNTIME_DIR/camoufox-agent.sock
+                 │ unix socket: $XDG_RUNTIME_DIR/camoufox-agent-<version>.sock
                  v
 camoufox-agentd (daemon, one per user)
   │  ProfileManager: profile name → running browser (or none)
@@ -46,8 +46,14 @@ each in its own tab group.
   servers racing to start it end with one daemon.
 - Protocol: JSON-RPC over the socket, one request per tool call. The MCP server
   forwards each tool call with its session id; the daemon holds no MCP state.
-- Version check on connect: an MCP server that meets a daemon of another version asks
-  it to exit once idle and starts its own on a versioned socket name.
+- The socket name carries the package version, so an MCP server never talks to a
+  daemon of another version: it asks any such daemon to exit once idle and starts its
+  own. Until the old one exits, a profile it still runs answers "in use by another
+  process".
+- `--profiles-dir` and `--headless` are properties of the browsers a daemon owns, so a
+  non-default combination gets its own daemon: the socket name ends in a hash of the
+  two. `--default-profile` is per session and travels with it.
+- The daemon logs to `<socket>.log`; a clean exit removes the log.
 
 Shutdown and crash handling: 03-lifecycle.md.
 
@@ -56,10 +62,13 @@ Shutdown and crash handling: 03-lifecycle.md.
 ```
 src/
   mcp/
-    server.ts        MCP wiring, tool registration, daemon client
-    tools/*.ts       tool schemas, forward to the daemon (05)
+    server.ts        MCP wiring, tool registration
+    client.ts        daemon client: connect, start the daemon, reconnect
+    tools/*.ts       tool schemas, forwarded to the daemon (05)
   daemon/
-    main.ts          socket server, client sessions, idle exit
+    main.ts          socket server, client sessions, deadlines, idle exit
+    install.ts       browser download in the background, progress (08)
+    tools*.ts        tool handlers, one file per group (05)
     profiles.ts      ProfileManager: lazy launch, close, crash handling (03)
     tabs.ts          TabRegistry: ids, ownership, active tab per session (04)
     launch.ts        camoufox launcher options, fixed identity per profile, prefs (03)
@@ -69,6 +78,7 @@ src/
     capture.ts       console, network, page errors, downloads
     sessions.ts      find_session + cross-profile hint (02)
     redact.ts        secret masking (07)
+  protocol.ts        the wire between MCP server and daemon
   paths.ts           profiles root, socket, downloads (02, 06)
 examples/
   firefox-import/    copy a Firefox container into a profile; not part of the package (10)
