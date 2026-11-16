@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { profileArg, tabId, type ToolDef } from "./defs.js";
 
+const tabLabel = z.string().max(80).optional().describe('What the tab is for, in a few words ("PR #12 review"). Shown in tabs_context, also to later sessions. Empty string removes it.');
+const tabKeep = z.boolean().optional().describe("Never close the tab for being unused. Only when the user wants the tab kept.");
+
 export const tabTools: ToolDef[] = [
   {
     name: "tabs_context",
@@ -18,7 +21,15 @@ export const tabTools: ToolDef[] = [
     shape: {
       url: z.string().optional().describe("Address to open. Omitted: a blank tab."),
       profile: profileArg.describe("Profile (identity) to open the tab in."),
+      label: tabLabel,
+      keep: tabKeep,
     },
+  },
+  {
+    name: "tabs_update",
+    description:
+      "Change a tab's label or keep flag. A label says what the tab is for and is shown in tabs_context, also to later sessions once this one ends. keep=true exempts the tab from the idle close (a tab nobody used for an hour is closed): set it when the user wants the tab kept.",
+    shape: { tabId, label: tabLabel, keep: tabKeep },
   },
   {
     name: "tabs_close",

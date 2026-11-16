@@ -47,6 +47,10 @@ export class Tab {
   lastUsed = Date.now();
   /** When the session that owned it ended (the tab stayed open, owned by nobody). */
   freedAt: number | null = null;
+  /** What an agent said the tab is for. */
+  label: string | null = null;
+  /** Exempt from the idle close. */
+  keep = false;
   private netListeners = new Set<NetListener>();
   /** Calls on one tab run one at a time. */
   queue: Promise<unknown> = Promise.resolve();
@@ -436,7 +440,7 @@ export class TabRegistry {
       await Promise.all([...this.tabs.values()].map((t) => this.userInput(t)));
       const now = Date.now();
       for (const tab of [...this.tabs.values()]) {
-        if (this.tabs.get(tab.id) !== tab || tab.profile.closing || now - tab.lastUsed < this.daemon.tabIdleMs) continue;
+        if (this.tabs.get(tab.id) !== tab || tab.keep || tab.profile.closing || now - tab.lastUsed < this.daemon.tabIdleMs) continue;
         await this.expire(tab);
       }
       if (this.daemon.sessions.size === 0) {

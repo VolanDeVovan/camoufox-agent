@@ -38,6 +38,7 @@ test("a tab no agent uses is closed after the idle time, and its owner is told",
   const s = await startSession({ profilesDir: dir, env: { CAMOUFOX_AGENT_TAB_IDLE_MS: "2500" } });
   try {
     const idle = Number((await s.call("tabs_create", { url: site.base + "/?idle" })).text.match(/Opened tab (\d+)/)![1]);
+    await s.call("tabs_create", { url: site.base + "/?kept", label: "stay here", keep: true });
     await s.call("tabs_create", { url: site.base + "/?used" });
     // The active tab is used every half second; the first one is not.
     let replies = "";
@@ -46,7 +47,10 @@ test("a tab no agent uses is closed after the idle time, and its owner is told",
       await sleep(500);
     }
     expect(replies).toMatch(new RegExp(`Tab ${idle} \\(default, .*\\?idle\\) was closed: no agent used it`));
-    expect((await s.call("tabs_context")).text).not.toContain("?idle");
+    const ctx = (await s.call("tabs_context")).text;
+    expect(ctx).not.toContain("?idle");
+    // keep exempts a tab from the idle close.
+    expect(ctx).toMatch(/\?kept\s+\[label "stay here", kept\]/);
   } finally {
     await s.close();
     await site.close();

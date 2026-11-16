@@ -40,7 +40,9 @@ its own tabs.
   its next call. `CAMOUFOX_AGENT_TAB_IDLE_MS` changes the hour. Use is an agent's call
   on the tab or the user's input in it: listeners in the isolated world (invisible to
   the page) note the last trusted pointer, key or wheel event of the top document, and
-  the sweep reads it once a minute. Input inside an iframe is not seen. A browser whose last
+  the sweep reads it once a minute. Input inside an iframe is not seen. A tab marked
+  `keep` (tabs_create / tabs_update) is never closed for being unused; a `label` says
+  what a tab is for, and both stay with the tab when its session ends. A browser whose last
   tab goes is closed with it, and with no session connected a browser holding nothing
   but blank tabs is closed at once.
 - The daemon lives while it has a session or a browser; with neither it exits a few
