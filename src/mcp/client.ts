@@ -30,6 +30,7 @@ export class DaemonClient {
   private nextId = 1;
   private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private retiredOld = false;
+  private lostInHandshake = false;
 
   constructor(
     private config: DaemonConfig,
@@ -98,12 +99,18 @@ export class DaemonClient {
     socket.on("close", lost);
     socket.on("error", lost);
     this.socket = socket;
-    await this.request(socket, "hello", {
-      version: VERSION,
-      session: this.session,
-      cwd: process.cwd(),
-      defaultProfile: this.defaultProfile,
-    });
+    try {
+      await this.request(socket, "hello", {
+        version: VERSION,
+        session: this.session,
+        cwd: process.cwd(),
+        defaultProfile: this.defaultProfile,
+      });
+    } catch (e) {
+      this.lostInHandshake = true;
+      socket.destroy();
+      throw e;
+    }
     return socket;
   }
 
@@ -118,7 +125,19 @@ export class DaemonClient {
   private async connection(): Promise<Socket> {
     if (this.socket && !this.socket.destroyed) return this.socket;
     if (!this.connecting) {
-      this.connecting = this.open().finally(() => {
+      this.connecting = (async () => {
+        for (let attempt = 1; ; attempt++) {
+          try {
+            return await this.open();
+          } catch (e) {
+            // A daemon that hung up during the handshake was shutting down: the next
+            // attempt starts a new one. Nothing has been asked of it yet, so this is safe.
+            if (attempt >= 3 || !this.lostInHandshake) throw e;
+            this.lostInHandshake = false;
+            await sleep(300);
+          }
+        }
+      })().finally(() => {
         this.connecting = null;
       });
     }

@@ -156,10 +156,14 @@ async function main(): Promise<void> {
   };
 
   const onConnection = (conn: Socket) => {
+    // A client that reached us while we are going down gets no session: it would start
+    // a browser that the exit then kills mid-call. It reconnects to the next daemon.
+    if (shuttingDown) return void conn.destroy();
     let session: Session | null = null;
     readLines(conn, (msg: Request) => {
       void (async () => {
         try {
+          if (shuttingDown) return void conn.destroy();
           if (msg.method === "hello") {
             const hello = msg.params as Hello;
             if (hello.version !== VERSION) {

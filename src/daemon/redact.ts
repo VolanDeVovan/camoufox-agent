@@ -103,9 +103,10 @@ export function maskJson(node: any): any {
   return typeof node === "string" ? maskTokensInText(node) : node;
 }
 
-/** Bearer values and JWTs have a recognisable shape wherever they turn up. */
+/** Bearer values, JWTs and URLs carrying credentials have a recognisable shape wherever they turn up. */
 export function maskTokensInText(text: string): string {
   return String(text)
+    .replace(/\bhttps?:\/\/[^\s"'<>\\)\]}]+/g, (url) => maskUrl(url))
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/g, (_m, kind) => `${kind} ***`)
     .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9_-]*)?/g, "***(jwt)");
 }

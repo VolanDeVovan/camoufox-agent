@@ -174,7 +174,8 @@ tool("fetch_markdown", async (call, args) => {
     finalUrl = r.url;
     how = "fetched without a browser";
   }
-  const md = htmlToMarkdown(html, finalUrl);
+  // Link targets are URLs like any other: tokens in them are masked.
+  const md = htmlToMarkdown(html, finalUrl).replace(/\]\((https?:[^)\s]+)\)/g, (_m, u) => `](${maskUrl(u)})`);
   if (md.replace(/^# .*\n?/, "").trim().length < 80 && !args.use_browser && /<script/i.test(html)) {
     return text(untrusted(`${maskUrl(finalUrl)} (${how})`, md || "(no text)") + "\nThe page has almost no text without JavaScript; use_browser=true renders it.");
   }

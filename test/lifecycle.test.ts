@@ -85,3 +85,23 @@ test("a browser that dies is reported and relaunched on next use", async () => {
     await site.close();
   }
 });
+
+test("a session that arrives while the daemon is shutting down gets a new daemon, not a dead call", async () => {
+  const dir = tempDir();
+  const first = await startSession({ profilesDir: dir, env: { CAMOUFOX_AGENT_IDLE_MS: "600000" } });
+  const second = await startSession({ profilesDir: dir, env: { CAMOUFOX_AGENT_IDLE_MS: "1500" } });
+  try {
+    await first.call("tabs_create", {});
+    const [pid] = daemonPids(dir);
+    // The daemon starts closing its browser (which takes a moment); a new session calls right then.
+    process.kill(pid, "SIGTERM");
+    await sleep(50);
+    const r = await second.call("tabs_context", { createIfEmpty: true });
+    expect(r.isError, r.text).toBe(false);
+    expect(daemonPids(dir).filter((p) => p !== pid)).toHaveLength(1);
+    expect(browsersOn(dir)).toHaveLength(1);
+  } finally {
+    await first.close();
+    await second.close();
+  }
+});
