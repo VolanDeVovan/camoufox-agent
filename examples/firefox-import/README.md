@@ -58,14 +58,13 @@ may come out inconsistent, and data from the last few seconds may be missing.
 ## What was verified
 
 - Moving a container's cookies (persistent and session), localStorage and IndexedDB
-  into the default context works: Camoufox reads all of them back
-  (`research/r1-container-import.mjs`).
+  into the default context works: Camoufox reads all of them back.
 - Firefox 160 and Camoufox 158 use the same schema versions for cookies (17),
   localStorage (80) and IndexedDB (416), so nothing is reset on the way.
 - Whether a session survives the move to another device fingerprint depends on the
-  site. Measured with a Google account (`research/r6-google-session.mjs`): Gmail
-  opened signed in; the Cloud console asked to verify the sign-in with a passkey.
-  Expect sensitive services to ask for one re-verification in the profile's window.
+  site. With a Google account, Gmail opened signed in; the Cloud console asked to
+  verify the sign-in with a passkey. Expect sensitive services to ask for one
+  re-verification in the profile's window.
 
 A Chromium browser would need a different importer: its cookies are encrypted with a
 key from the system keyring and its localStorage / IndexedDB are LevelDB.

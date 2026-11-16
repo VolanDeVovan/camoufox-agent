@@ -29,9 +29,8 @@ relies on, a bug that already happened, or a security property.
   channel and checks none appears without `reveal_values`.
 - A flaky test is a bug in the code or the test; it is fixed, not retried.
 
-Focus, window and rendering behaviour depend on the desktop and are checked by hand
-with the scripts in `research/` (they need a Wayland session with niri):
-`headed-check.mjs`, `focus-check.mjs`, `r5-devtools.mjs`.
+Focus, window and rendering behaviour depend on the desktop and are not automated:
+check them by hand in a headed session when that code changes.
 
 ## Releasing
 

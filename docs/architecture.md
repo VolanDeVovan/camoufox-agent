@@ -83,5 +83,4 @@ src/
   paths.ts            profiles root, socket, downloads
   protocol.ts         the wire between MCP server and daemon
 examples/firefox-import/   copy a Firefox container into a profile
-research/                  scripts for checks that need a real desktop
 ```
