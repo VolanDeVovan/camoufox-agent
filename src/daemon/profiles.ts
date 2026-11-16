@@ -16,8 +16,6 @@ export interface RunningProfile {
   dir: string;
   temp: boolean;
   context: BrowserContext;
-  /** The blank page a fresh browser starts with, until a session takes it. */
-  initialPage: Page | null;
   /** Serializes tab opening: one expected page at a time. */
   opening: Promise<unknown>;
   /** Set while we wait for a tab we asked the browser to open. */
@@ -185,7 +183,6 @@ export class ProfileManager {
       dir,
       temp,
       context,
-      initialPage: pages[0] ?? null,
       opening: Promise.resolve(),
       expecting: null,
       expectingFrom: null,
@@ -196,7 +193,7 @@ export class ProfileManager {
       goneNotice: null,
     };
     context.on("close", () => this.onGone(profile));
-    this.daemon.tabs.attach(profile);
+    this.daemon.tabs.attach(profile, pages[0] ?? null);
     return profile;
   }
 
@@ -209,48 +206,40 @@ export class ProfileManager {
     // profile. Forgetting it now would let a launch race the exiting browser.
     if (profile.closing) return;
     this.entries.delete(profile.name);
-    if (!profile.closing) {
-      this.daemon.tabs.dropProfile(
-        profile,
-        `The browser of profile "${profile.name}" exited (it crashed, or the user closed it); its tabs are gone. The next use of the profile relaunches it.`,
-        null,
-      );
-    }
+    this.daemon.tabs.dropProfile(
+      profile,
+      `The browser of profile "${profile.name}" exited (it crashed, or the user closed it); its tabs are gone. The next use of the profile relaunches it.`,
+    );
     if (profile.temp) rmSync(profile.dir, { recursive: true, force: true });
     this.daemon.checkIdle();
   }
 
-  /** Close one browser for everyone. `by` is the session that asked, if any. */
-  async close(name: string, by: string | null): Promise<boolean> {
+  /** Close a browser: its last tab went, nobody uses it, or the daemon exits. */
+  async close(name: string): Promise<void> {
     const entry = this.entries.get(name);
-    if (!entry) return false;
+    if (!entry) return;
     let profile: RunningProfile;
     try {
       profile = await entry.promise;
     } catch {
-      return false;
+      return;
     }
     if (profile.closing) {
       await entry.closed;
-      return true;
+      return;
     }
     profile.closing = true;
     let done!: () => void;
     entry.closed = new Promise<void>((r) => (done = r));
     try {
-      await this.shut(name, entry, profile, by);
+      await this.shut(name, entry, profile);
     } finally {
       done();
     }
-    return true;
   }
 
-  private async shut(name: string, entry: Entry, profile: RunningProfile, by: string | null): Promise<void> {
-    this.daemon.tabs.dropProfile(
-      profile,
-      `The browser of profile "${name}" was closed; your tabs in it are gone. The next use of the profile relaunches it.`,
-      by,
-    );
+  private async shut(name: string, entry: Entry, profile: RunningProfile): Promise<void> {
+    this.daemon.tabs.dropProfile(profile, `The browser of profile "${name}" was closed; your tabs in it are gone. The next use of the profile relaunches it.`);
     const pid = browserPid(profile.dir);
     const closed = await Promise.race([profile.context.close().then(() => true, () => true), new Promise<boolean>((r) => setTimeout(() => r(false), 10000))]);
     // The connection closes before the process has exited and let go of the profile; a
@@ -271,6 +260,6 @@ export class ProfileManager {
   }
 
   async closeAll(): Promise<void> {
-    await Promise.all([...this.entries.keys()].map((name) => this.close(name, null)));
+    await Promise.all([...this.entries.keys()].map((name) => this.close(name)));
   }
 }

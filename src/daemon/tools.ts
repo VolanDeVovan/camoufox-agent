@@ -7,7 +7,7 @@ import { goto, history, normalizeUrl, reload } from "./navigation.js";
 import { maskUrl } from "./redact.js";
 import type { Daemon, Session } from "./state.js";
 import { ToolError } from "./state.js";
-import type { Tab } from "./tabs.js";
+import { duration, type Tab } from "./tabs.js";
 
 export interface Call {
   daemon: Daemon;
@@ -80,7 +80,7 @@ function mark(tab: Tab, args: any, idleMs: number): string {
   }
   if (typeof args.keep === "boolean") {
     tab.keep = args.keep;
-    said.push(tab.keep ? "kept (never closed for being unused)" : `closed after ${Math.round(idleMs / 60000)} min unused`);
+    said.push(tab.keep ? "kept (never closed for being unused)" : `closed after ${duration(idleMs)} unused`);
   }
   return said.join(", ");
 }
@@ -107,8 +107,8 @@ export async function tabsContext(call: Call): Promise<string> {
   for (const t of mine) lines.push(await tabLine(t, t.id === session.activeTab));
   const free = daemon.tabs.free();
   if (free.length) {
-    lines.push("free tabs (no session owns them: left by an ended session, or opened by the user; pass tabId to take one):");
-    for (const t of free) lines.push(`${await tabLine(t, false)}   (${t.freedAt !== null ? "left by a session" : "opened by the user"}, unused for ${ago(t.lastUsed)})`);
+    lines.push("free tabs (no session owns them: left by an ended session, or opened by the user or a page; pass tabId to take one):");
+    for (const t of free) lines.push(`${await tabLine(t, false)}   (${t.leftBySession ? "left by a session" : "opened by the user or a page"}, unused for ${ago(t.lastUsed)})`);
   }
   const profiles = daemon.profiles.list();
   lines.push(

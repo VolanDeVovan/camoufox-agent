@@ -22,7 +22,6 @@ function parseArgs(argv: string[]): { config: DaemonConfig; tabIdleMs: number; s
     const a = argv[i];
     if (a === "--profiles-dir") config.profilesDir = resolve(argv[++i]);
     else if (a === "--headless") config.headless = true;
-    else if (a === "--tab-idle-ms") tabIdleMs = Number(argv[++i]);
     else if (a === "--socket") socket = argv[++i];
   }
   return { config, tabIdleMs, socket: socket || socketPath(config) };

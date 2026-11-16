@@ -21,6 +21,9 @@ Usage: camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
   --headless              run browsers without a window
   --version, --help
 
+Environment: CAMOUFOX_AGENT_TAB_IDLE_MS  close a tab nobody used for this long
+  (default 3600000, an hour); read by the daemon when the first session starts it.
+
 Register with Claude Code:  claude mcp add camoufox -- npx -y camoufox-agent
 `;
 

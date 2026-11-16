@@ -68,7 +68,7 @@ tool("handle_dialog", async (call, args) => {
   if (args.clear) {
     tab.dialogOnce = null;
     tab.dialogRule = null;
-    return text(`Tab ${tab.id}: dialog answers cleared; dialogs are dismissed by default again.`);
+    return text(`Tab ${tab.id}: dialog answers cleared; dialogs your actions open are dismissed by default again.`);
   }
   if (typeof args.accept !== "boolean") throw new ToolError("handle_dialog needs accept: true / false (or clear: true).");
   const answer = { accept: args.accept, promptText: typeof args.prompt_text === "string" ? args.prompt_text : undefined };

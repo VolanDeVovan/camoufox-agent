@@ -40,13 +40,12 @@ export class Tab {
   blocking: { types: Set<string>; patterns: string[]; handler: any } | null = null;
   /** Screenshot pixels per CSS pixel in the last screenshot handed to the agent (coordinates are mapped back). */
   shotScale = 1;
-  closedByAgent = false;
   /** Opened blank because a tool needed a tab and the session had none; tabs_create takes it. */
   implicit = false;
-  /** When an agent last used the tab. */
+  /** When an agent or the user last used the tab. */
   lastUsed = Date.now();
-  /** When the session that owned it ended (the tab stayed open, owned by nobody). */
-  freedAt: number | null = null;
+  /** Left open by a session that ended (otherwise a free tab was opened by the user or a page). */
+  leftBySession = false;
   /** What an agent said the tab is for. */
   label: string | null = null;
   /** Exempt from the idle close. */
@@ -163,6 +162,11 @@ const INPUT_JS = `(function () {
   return s.t ? Date.now() - s.t : -1;
 })()`;
 
+/** A duration for a reply: "60 min", "90 s". */
+export function duration(ms: number): string {
+  return ms >= 60000 ? `${Math.round(ms / 60000)} min` : `${Math.round(ms / 1000)} s`;
+}
+
 /** How long a window.open we gave up on may still open its tab. */
 const ABANDONED_MS = 60000;
 
@@ -178,8 +182,8 @@ export class TabRegistry {
   constructor(private daemon: Daemon) {}
 
   /** Start tracking a freshly launched browser. */
-  attach(profile: RunningProfile): void {
-    if (profile.initialPage) this.register(profile.initialPage, profile, null).pristine = true;
+  attach(profile: RunningProfile, firstPage: Page | null): void {
+    if (firstPage) this.register(firstPage, profile, null).pristine = true;
     profile.context.on("page", (page) => void this.onPage(profile, page));
   }
 
@@ -252,7 +256,7 @@ export class TabRegistry {
     const profile = tab.profile;
     if (profile.visible === tab.page) profile.visible = null;
     const session = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
-    if (!session || tab.closedByAgent) return;
+    if (!session) return;
     const what = `Tab ${tab.id} (${profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed by the user or by the page.`;
     const wasActive = session.activeTab === tab.id;
     if (wasActive) {
@@ -270,8 +274,8 @@ export class TabRegistry {
     }, 250);
   }
 
-  /** The browser of a profile is gone: forget its tabs and tell their owners (except `by`). */
-  dropProfile(profile: RunningProfile, notice: string, by: string | null): void {
+  /** The browser of a profile is gone: forget its tabs and tell their owners. */
+  dropProfile(profile: RunningProfile, notice: string): void {
     profile.goneNotice = notice;
     const told = new Set<string>();
     for (const tab of [...this.tabs.values()]) {
@@ -281,7 +285,6 @@ export class TabRegistry {
       if (!session) continue;
       const wasActive = session.activeTab === tab.id;
       if (wasActive) session.activeTab = null;
-      if (session.id === by) continue;
       if (wasActive) session.lostActive = notice;
       else if (!told.has(session.id) && !session.notices.includes(notice)) session.notices.push(notice);
       told.add(session.id);
@@ -296,7 +299,7 @@ export class TabRegistry {
     return [...this.tabs.values()].filter((t) => t.owner === session.id);
   }
 
-  /** Tabs no session owns (left by an ended session, or opened by hand): any session may take one. */
+  /** Tabs no session owns (left by an ended session, or opened by the user or a page): any session may take one. */
   free(): Tab[] {
     return [...this.tabs.values()].filter((t) => t.owner === null && !t.pristine);
   }
@@ -409,7 +412,7 @@ export class TabRegistry {
 
   /**
    * The tab a tool call acts on: the given one, or the session's active tab, or a
-   * blank tab in the default profile when the session has none (lazy launch, 03).
+   * blank tab in the default profile when the session has none.
    */
   async resolve(session: Session, tabId?: number | null): Promise<Tab> {
     // A call still running when its session ended (a long browser_batch) acts no more.
@@ -422,7 +425,7 @@ export class TabRegistry {
       if (tab.owner === null) {
         tab.owner = session.id;
         tab.pristine = false;
-        tab.freedAt = null;
+        tab.leftBySession = false;
         // What was captured while it was free (the user may have logged in there) is not handed over.
         tab.forgetCaptures();
         session.notices.push(`Took tab ${tab.id}: it is this session's tab now.`);
@@ -464,19 +467,19 @@ export class TabRegistry {
 
   /** Close a tab. The browser closes with its last tab, as Firefox does with its last window. */
   async close(tab: Tab): Promise<void> {
-    tab.closedByAgent = true;
-    this.tabs.delete(tab.id);
+    this.tabs.delete(tab.id); // first: onClosed then says nothing (the agent closed it)
     const owner = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (owner?.activeTab === tab.id) owner.activeTab = null;
     const others = tab.profile.context.pages().filter((p) => p !== tab.page && !p.isClosed());
-    if (!others.length && !tab.profile.closing) await this.daemon.profiles.close(tab.profile.name, tab.owner);
+    if (!others.length && !tab.profile.closing) await this.daemon.profiles.close(tab.profile.name);
     else await tab.page.close().catch(() => {});
   }
 
   /**
-   * Close what nobody uses: a tab no agent used for tabIdleMs (its owner, if any, is
-   * told on its next call), and, with no session connected, a browser left with nothing
-   * but blank tabs. The browser of a tab that was its window's last goes with it.
+   * Close what nobody uses: a tab nobody (an agent or the user) used for tabIdleMs (its
+   * owner, if any, is told on its next call; the browser goes with its last tab), and,
+   * with no session connected, a browser left with nothing but its blank first page (a
+   * safety net: a session's blank tabs are closed when it ends).
    */
   async sweep(): Promise<void> {
     if (this.sweeping) {
@@ -494,7 +497,7 @@ export class TabRegistry {
       for (const profile of this.daemon.profiles.allRunning()) {
         // A session may connect while a browser closes: checked for each.
         if (this.daemon.sessions.size > 0) break;
-        if (!profile.closing && this.inProfile(profile).every((t) => t.pristine || t.page.isClosed())) await this.daemon.profiles.close(profile.name, null);
+        if (!profile.closing && this.inProfile(profile).every((t) => t.pristine || t.page.isClosed())) await this.daemon.profiles.close(profile.name);
       }
     } catch (e: any) {
       this.daemon.log("sweep failed:", e?.stack || e);
@@ -516,8 +519,7 @@ export class TabRegistry {
   }
 
   private async expire(tab: Tab): Promise<void> {
-    const minutes = Math.round(this.daemon.tabIdleMs / 60000);
-    const what = `Tab ${tab.id} (${tab.profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed: nobody used it for ${minutes >= 1 ? `${minutes} min` : `${this.daemon.tabIdleMs} ms`}.`;
+    const what = `Tab ${tab.id} (${tab.profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed: nobody used it for ${duration(this.daemon.tabIdleMs)}.`;
     const session = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (session) {
       if (session.activeTab === tab.id) {
@@ -545,7 +547,7 @@ export class TabRegistry {
   private async release(tab: Tab): Promise<void> {
     tab.owner = null;
     tab.implicit = false;
-    tab.freedAt = Date.now();
+    tab.leftBySession = true;
     tab.dialogOnce = null;
     tab.dialogRule = null;
     if (tab.blocking) {

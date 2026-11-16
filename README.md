@@ -59,6 +59,10 @@ The server tells the agent how to use it; there is no skill to install.
 camoufox-agent [--default-profile NAME] [--profiles-dir DIR] [--headless]
 ```
 
+Tabs outlive the agent session that opened them, so you can keep reading a page or
+an agent can pick it up again later; a tab nobody has used for an hour is closed
+(`CAMOUFOX_AGENT_TAB_IDLE_MS`), and a browser closes with its last tab.
+
 ## Bringing your sessions in
 
 A profile is a plain directory, so sessions you already have can be copied into it.

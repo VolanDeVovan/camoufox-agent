@@ -47,8 +47,9 @@ and the reply names what covers it.
 
 - Typing pastes by default; `per_key: true` types key by key with human-like delays.
   Cursor movement is humanized by Camoufox itself.
-- A dialog an agent action opened (a click, key, form_input, navigate, javascript_tool
-  or file_upload in flight, or one that ended under 2 s ago) is dismissed unless
+- A dialog an agent action opened (any computer action but screenshot / zoom,
+  form_input, navigate, tabs_create with a url, javascript_tool, file_upload or
+  fetch_markdown with use_browser, in flight or ended under 2 s ago) is dismissed unless
   `handle_dialog` armed an answer first, and the action's reply says so. Reading a page
   claims nothing. Any other dialog (the user clicked, the page opened it on its own, or
   it came late) is left on screen for the user in a visible window; a call on the tab
