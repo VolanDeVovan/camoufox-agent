@@ -123,7 +123,7 @@ tool("http_request", async (call, args) => {
     });
   } catch (e: any) {
     if (e instanceof ToolError) throw e;
-    return fail(`Request to ${maskUrl(String(args.url))} failed: ${String(e?.message || e).split("\n")[0]}`);
+    return fail(`Request to ${maskUrl(String(args.url))} failed: ${String(e?.message || e).split("\n")[0].replace(/https?:\/\/\S+/g, (u) => maskUrl(u))}`);
   }
   const reveal = !!args.reveal_values;
   const max = args.max_chars ?? 20000;
@@ -167,7 +167,7 @@ tool("fetch_markdown", async (call, args) => {
       r = await httpFetch(call.daemon, { url, profile, useCookies: args.use_cookies !== false, followRedirects: true, timeoutMs: 30000 });
     } catch (e: any) {
       if (e instanceof ToolError) throw e;
-      return fail(`Request to ${maskUrl(url)} failed: ${String(e?.message || e).split("\n")[0]}`);
+      return fail(`Request to ${maskUrl(url)} failed: ${String(e?.message || e).split("\n")[0].replace(/https?:\/\/\S+/g, (u) => maskUrl(u))}`);
     }
     if (r.status >= 400) return fail(`${maskUrl(r.url)} answered ${r.status}. For a page behind anti-bot protection or one that needs JavaScript, try use_browser=true or open it with navigate.`);
     html = r.body;

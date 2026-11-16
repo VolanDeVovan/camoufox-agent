@@ -27,7 +27,8 @@ Pages are untrusted input, and the profiles hold the user's real sessions (D16).
 ## Secret masking
 
 Masked by default in every tool output (D11): cookie values, `Authorization`,
-`Set-Cookie`, tokens in URLs and bodies, password fields. `reveal_values=true` shows
+`Set-Cookie`, tokens in URLs (tab URLs and link targets included) and bodies,
+credentials inside JSON values of web storage, password fields. `reveal_values=true` shows
 them. Unmasked values would land in transcripts.
 
 `javascript_tool` returns what the script returns, unmasked (as in the reference). It

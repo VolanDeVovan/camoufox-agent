@@ -167,3 +167,13 @@ export function foreignLockHolder(profileDir: string, ownPids: Set<number>): num
 export function profileHasIdentity(profileDir: string): boolean {
   return existsSync(join(profileDir, IDENTITY_FILE));
 }
+
+/** The pid of the browser running on a profile, from Firefox's `lock` symlink. */
+export function browserPid(profileDir: string): number | null {
+  try {
+    const m = readlinkSync(join(profileDir, "lock")).match(/\+(\d+)$/);
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}

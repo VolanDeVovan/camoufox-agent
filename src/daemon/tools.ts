@@ -4,6 +4,7 @@ import type { ToolResult } from "../protocol.js";
 import { fail, text } from "../protocol.js";
 import { TEMP_PROFILE, validateProfileName } from "../paths.js";
 import { goto, history, normalizeUrl, reload } from "./navigation.js";
+import { maskUrl } from "./redact.js";
 import type { Daemon, Session } from "./state.js";
 import { ToolError } from "./state.js";
 import type { Tab } from "./tabs.js";
@@ -11,7 +12,12 @@ import type { Tab } from "./tabs.js";
 export interface Call {
   daemon: Daemon;
   session: Session;
+  /** Set when the call's deadline fired: whatever has not started yet must not start. */
+  cancelled?: boolean;
 }
+
+/** How long one call may hold a tab's queue. A wedged page must not block the calls behind it for good. */
+const QUEUE_HOLD_MS = 45000;
 
 type Handler = (call: Call, args: any) => Promise<ToolResult>;
 
@@ -27,8 +33,14 @@ export function tool(name: string, handler: Handler, deadline?: number | ((args:
 /** Run a handler body with the tab's calls serialized. */
 export async function onTab<T>(call: Call, tabId: number | undefined, body: (tab: Tab) => Promise<T>): Promise<T> {
   const tab = await call.daemon.tabs.resolve(call.session, tabId);
-  const run = tab.queue.then(() => body(tab));
-  tab.queue = run.catch(() => {});
+  const run = tab.queue.then(() => {
+    // The deadline counts the wait in the queue too. A call already reported as
+    // failed must not act later: the agent would repeat it and the action happen twice.
+    if (call.cancelled) throw new ToolError("cancelled: the call's deadline passed while it waited for the tab.");
+    return body(tab);
+  });
+  let release: NodeJS.Timeout;
+  tab.queue = Promise.race([run.catch(() => {}), new Promise((r) => (release = setTimeout(r, QUEUE_HOLD_MS)))]).finally(() => clearTimeout(release));
   return run;
 }
 
@@ -39,7 +51,7 @@ export async function withTab<T>(call: Call, tabId: number | undefined, body: (t
 
 export async function tabLine(tab: Tab, active: boolean): Promise<string> {
   const title = (await tab.title()).replace(/\s+/g, " ").slice(0, 60);
-  return `  ${String(tab.id).padEnd(3)} ${tab.profile.name.padEnd(12)} ${JSON.stringify(title)}  ${tab.url()}${active ? "   <- active" : ""}`;
+  return `  ${String(tab.id).padEnd(3)} ${tab.profile.name.padEnd(12)} ${JSON.stringify(title)}  ${maskUrl(tab.url())}${active ? "   <- active" : ""}`;
 }
 
 export async function tabsContext(call: Call): Promise<string> {
@@ -91,7 +103,7 @@ tool("tabs_create", async (call, args) => {
       navError = String(e?.message || e);
     }
   }
-  out.push(`Opened tab ${tab.id} in profile "${tab.profile.name}"; it is the active tab. URL: ${tab.url()}`);
+  out.push(`Opened tab ${tab.id} in profile "${tab.profile.name}"; it is the active tab. URL: ${maskUrl(tab.url())}`);
   if (navError) return fail(out.join("\n") + `\n${navError}`);
   for (const extra of await afterNavigation(call, tab)) out.push(extra);
   return text(out.join("\n"));
@@ -131,7 +143,7 @@ tool("navigate", (call, args) =>
     const lower = target.toLowerCase();
     if (lower === "back" || lower === "forward") {
       const moved = await history(tab, lower);
-      if (!moved) return fail(`Cannot go ${lower}: there is no ${lower === "back" ? "previous" : "next"} page in this tab's history. URL: ${tab.url()}`);
+      if (!moved) return fail(`Cannot go ${lower}: there is no ${lower === "back" ? "previous" : "next"} page in this tab's history. URL: ${maskUrl(tab.url())}`);
     } else if (lower === "reload") {
       await reload(tab);
     } else {
@@ -139,7 +151,7 @@ tool("navigate", (call, args) =>
       await goto(tab, target);
     }
     const title = await tab.title();
-    const out = [`Tab ${tab.id} is at ${tab.url()}${title ? ` (${title})` : ""}`];
+    const out = [`Tab ${tab.id} is at ${maskUrl(tab.url())}${title ? ` (${title})` : ""}`];
     for (const extra of await afterNavigation(call, tab)) out.push(extra);
     return text(out.join("\n"));
   }), 60000);

@@ -25,6 +25,9 @@ tabs_context()
   session whose tab opened them, and are reported in the reply of that action.
 - A tab closed by the user disappears from the list; if it was active, the reply of the
   next call says so instead of silently switching.
+- A page that appears with no opener within 1.5 s of an agent action in that browser is
+  taken as that action's (a `rel=noopener` link); a new-tab page (`about:newtab`,
+  `about:home`) never is.
 - Tabs the user opens by hand in the agent's window belong to no session;
   `tabs_context` lists them, and a session adopts one by passing its id as `tabId`.
 - Closing the last tab of a window would close the window, and the next tab would need

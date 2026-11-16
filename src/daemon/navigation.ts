@@ -1,6 +1,7 @@
 // Navigation that does not rely on Playwright's lifecycle events (06, Camoufox quirks).
 // Adapted from the reference (reference/mcp-camoufox/src/helpers.ts: gotoReady, waitReady).
 import type { Page } from "playwright-core";
+import { maskUrl } from "./redact.js";
 import type { Tab } from "./tabs.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -90,7 +91,7 @@ export async function goto(tab: Tab, rawUrl: string, timeout = 30000): Promise<v
       const g = JSON.parse(raw || "{}");
       arrived = sameTarget(g.href, url) && !/^about:(neterror|certerror|blocked|httpsonlyerror)/.test(String(g.doc || "")) && g.state !== "loading";
     } catch {}
-    if (!arrived) throw new Error(`Navigation to ${url} did not finish within ${Math.round(timeout / 1000)} s.`);
+    if (!arrived) throw new Error(`Navigation to ${maskUrl(url)} did not finish within ${Math.round(timeout / 1000)} s.`);
   }
   await waitReady(page, Math.max(3000, timeout - (Date.now() - started)));
   await settle(tab, 1500);
@@ -107,7 +108,7 @@ function cleanNavError(msg: string, url: string): string {
     NS_ERROR_UNKNOWN_PROTOCOL: "unknown protocol",
     NS_ERROR_MALFORMED_URI: "malformed URL",
   };
-  return `Could not open ${url}: ${code ? known[code] || code : first}.`;
+  return `Could not open ${maskUrl(url)}: ${code ? known[code] || code : first.split(url).join(maskUrl(url))}.`;
 }
 
 export async function history(tab: Tab, direction: "back" | "forward", timeout = 15000): Promise<boolean> {

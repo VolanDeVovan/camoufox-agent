@@ -52,7 +52,8 @@ page it landed on (07-security.md).
 Refusals instead of guesses:
 
 - disabled or hidden element → refused, nothing fired
-- element covered by another → names the covering element
+- element covered by another → names the covering element; for an element inside an
+  iframe this includes something in the top document lying over the frame
 - several matches for a text lookup → `find` lists them all with refs; actions take a
   ref or a coordinate, never a text to look up, so nothing is ever picked for the agent
 
@@ -121,4 +122,9 @@ clicking.
 ## Deadlines
 
 Every tool has a timeout. A wedged page answers "did not finish within N s" instead of
-hanging the agent.
+hanging the agent. Calls on one tab run one at a time; a call whose deadline passed
+while it waited in that queue never runs (the agent would repeat it and the action
+would happen twice), and a call that is stuck gives the queue up after 45 s, so
+`navigate("reload")` still gets through. Opening a tab never waits on the page it is
+opened from. When the page was too busy to be looked at during the watch, the reply
+says "could not tell what the page did", not "nothing happened".

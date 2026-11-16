@@ -1,7 +1,7 @@
 // find_session, and the `storage` group: cookies, web_storage (05-tools.md).
 import { fail, text } from "../protocol.js";
 import { evalWithin } from "./navigation.js";
-import { isSecretName, maskTokensInText, maskedValue, untrusted } from "./redact.js";
+import { isSecretName, maskBody, maskUrl, maskedValue, untrusted } from "./redact.js";
 import { crossProfileHint, findSession } from "./sessions.js";
 import { ToolError } from "./state.js";
 import { navigationHooks, onTab, tool, withTab } from "./tools.js";
@@ -38,9 +38,15 @@ tool("cookies", (call, args) =>
       const pageUrl = /^https?:/.test(tab.url()) ? tab.url() : undefined;
       const scope = args.url || (args.domain ? undefined : pageUrl);
       let list = await context.cookies(scope ? [scope] : undefined);
-      if (args.domain) list = list.filter((c) => c.domain.replace(/^\./, "").endsWith(String(args.domain).replace(/^\./, "").toLowerCase()));
+      if (args.domain) {
+        const want = String(args.domain).replace(/^\./, "").toLowerCase();
+        list = list.filter((c) => {
+          const have = c.domain.replace(/^\./, "").toLowerCase();
+          return have === want || have.endsWith("." + want);
+        });
+      }
       if (args.name) list = list.filter((c) => c.name === args.name);
-      const where = args.domain ? `domain ${args.domain}` : scope ? scope : "all sites";
+      const where = args.domain ? `domain ${args.domain}` : scope ? maskUrl(scope) : "all sites";
       if (!list.length) return text(`No cookies for ${where} in profile "${tab.profile.name}".`);
       const lines = list.slice(0, 300).map((c) => {
         const flags = [c.httpOnly ? "HttpOnly" : "", c.secure ? "Secure" : "", c.sameSite && c.sameSite !== "None" ? `SameSite=${c.sameSite}` : ""].filter(Boolean).join(" ");
@@ -101,7 +107,8 @@ tool("web_storage", (call, args) =>
     const shown = (key: string, value: string) => {
       if (args.reveal_values) return value;
       if (isSecretName(key)) return maskedValue(value);
-      const masked = maskTokensInText(value);
+      // A value is often a JSON blob with the token inside ({"accessToken": ...}).
+      const masked = maskBody(value);
       return masked.length > 2000 ? masked.slice(0, 2000) + `… (${value.length} chars)` : masked;
     };
     if (action === "get") {

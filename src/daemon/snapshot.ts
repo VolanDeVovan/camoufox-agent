@@ -5,6 +5,7 @@
 // snapshotPage); the walker is ours.
 import type { Frame, Locator } from "playwright-core";
 import { evalWithin } from "./navigation.js";
+import { maskUrl } from "./redact.js";
 import { ToolError } from "./state.js";
 import type { Tab } from "./tabs.js";
 
@@ -57,8 +58,8 @@ export interface SnapItem {
   href?: string;
   inputType?: string;
   placeholder?: string;
-  /** For kind "frame": index into the frames the walker saw. */
-  frameIndex?: number;
+  /** For kind "frame": a ref of the iframe element itself, to find its frame by. */
+  frameRef?: string;
   options?: string[];
 }
 
@@ -244,9 +245,8 @@ function walkerJs(opts: {
     var here = inside;
     if (tag === "IFRAME" || tag === "FRAME") {
       if (visible(el)) {
-        var fi = frames++;
-        if (opts.mode !== "find") items.push({ kind: "frame", role: "iframe", name: cut(el.getAttribute("title") || el.getAttribute("name") || el.getAttribute("src") || "", 80), frameIndex: fi });
-        else items.push({ kind: "frame", role: "iframe", name: "", frameIndex: fi });
+        frames++;
+        items.push({ kind: "frame", role: "iframe", name: opts.mode !== "find" ? cut(el.getAttribute("title") || el.getAttribute("name") || el.getAttribute("src") || "", 80) : "", frameRef: refOf(el) });
       } else frames++;
       return;
     }
@@ -294,7 +294,7 @@ export interface Snapshot {
   note: string[];
 }
 
-function formatItem(item: SnapItem, indent: string): string {
+function formatItem(item: SnapItem, indent: string, reveal: boolean): string {
   if (item.kind === "text") return `${indent}text ${JSON.stringify(item.name)}${item.ref ? " " + item.ref : ""}`;
   if (item.role === "heading") return `${indent}heading ${JSON.stringify(item.name)} [h${item.level}]${item.ref ? " " + item.ref : ""}`;
   let line = `${indent}${item.role} ${JSON.stringify(item.name)}`;
@@ -311,7 +311,7 @@ function formatItem(item: SnapItem, indent: string): string {
   if (item.disabled) flags.push("disabled");
   if (item.options) flags.push(`options: ${item.options.join(" | ")}`);
   if (flags.length) line += ` (${flags.join(", ")})`;
-  if (item.href) line += ` -> ${item.href}`;
+  if (item.href) line += ` -> ${reveal ? item.href : maskUrl(item.href)}`;
   return line;
 }
 
@@ -355,18 +355,15 @@ async function walkFrame(
   if (result.rootMissing) throw new ToolError(`Ref ${opts.rootRef} is stale or unknown: call read_page again.`);
   tab.refSeq = Math.max(tab.refSeq, result.next);
   if (result.capped) out.note.push(`more than ${MAX_ITEMS} elements${prefix ? ` in frame ${prefix}` : ""}: the rest is not listed; narrow with ref_id or find`);
-  // Child frames in document order, as the walker counted them.
-  let children: Frame[] = [];
-  if (result.items.some((i) => i.kind === "frame")) {
-    const handles = await frame.locator("iframe, frame").elementHandles().catch(() => []);
-    children = (await Promise.all(handles.map((h) => h.contentFrame().catch(() => null)))) as Frame[];
-  }
   for (const item of result.items) {
     if (item.kind !== "frame") {
-      out.lines.push(formatItem(item, indent));
+      out.lines.push(formatItem(item, indent, opts.reveal));
       continue;
     }
-    const child = children[item.frameIndex!];
+    // The frame of exactly this iframe element: positions in two listings would not agree
+    // under ref_id, in shadow roots, or inside interactive elements.
+    const handle = await frame.locator(`cfaref=${item.frameRef}`).elementHandle({ timeout: 2000 }).catch(() => null);
+    const child = handle ? await handle.contentFrame().catch(() => null) : null;
     if (!child || child.isDetached()) continue;
     if (budget.frames >= MAX_FRAMES) {
       if (opts.mode !== "find") out.lines.push(`${indent}iframe ${JSON.stringify(item.name)} (not read: more than ${MAX_FRAMES} frames)`);

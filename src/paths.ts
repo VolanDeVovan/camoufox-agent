@@ -1,6 +1,6 @@
 // Where things live on disk: profiles, the daemon socket, downloads.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,8 +32,15 @@ export function expandHome(p: string): string {
 }
 
 export function runtimeDir(): string {
-  const dir = process.env.XDG_RUNTIME_DIR || join(tmpdir(), `camoufox-agent-${userInfo().uid}`);
+  if (process.env.XDG_RUNTIME_DIR) return process.env.XDG_RUNTIME_DIR;
+  // No runtime dir: a directory of our own under the temp dir. It holds the daemon
+  // socket, so one that somebody else made, or that others can write to, is refused.
+  const dir = join(tmpdir(), `camoufox-agent-${userInfo().uid}`);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const st = lstatSync(dir);
+  if (!st.isDirectory() || st.uid !== userInfo().uid || (st.mode & 0o077) !== 0) {
+    throw new Error(`${dir} must be a directory owned by you with mode 0700 (it holds the daemon socket). Fix or remove it, or set XDG_RUNTIME_DIR.`);
+  }
   return dir;
 }
 

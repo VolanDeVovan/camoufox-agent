@@ -3,7 +3,7 @@
 // clients (01-architecture.md). Socket server, client sessions, idle exit.
 import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { VERSION, defaultProfilesDir, ensureDir, socketPath, type DaemonConfig } from "../paths.js";
 import { readLines, send, fail, type Hello, type Request, type ToolResult } from "../protocol.js";
 import { BrowserNotReady } from "./install.js";
@@ -30,12 +30,17 @@ function parseArgs(argv: string[]): { config: DaemonConfig; idleMs: number; sock
 
 const log = (...args: unknown[]) => console.error(new Date().toISOString(), ...args);
 
+/** Is this pid a live daemon of ours? A pid alone is not enough: a dead daemon's pid may have been reused. */
 function pidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
-    return true;
   } catch (e: any) {
-    return e?.code === "EPERM";
+    if (e?.code !== "EPERM") return false;
+  }
+  try {
+    return readFileSync(`/proc/${pid}/cmdline`, "utf8").includes(`daemon${sep}main.js`);
+  } catch {
+    return true; // no /proc here: believe the pid
   }
 }
 
@@ -129,11 +134,12 @@ async function main(): Promise<void> {
     const limit = typeof spec === "function" ? spec(args ?? {}) : spec ?? DEFAULT_DEADLINE;
     let timer: NodeJS.Timeout;
     let result: ToolResult;
+    const call = { daemon, session, cancelled: false };
     try {
       result = await Promise.race([
-        handler({ daemon, session }, args ?? {}),
+        handler(call, args ?? {}),
         new Promise<ToolResult>((_, reject) => {
-          timer = setTimeout(() => reject(new ToolError(`${name} did not finish within ${Math.round(limit / 1000)} s. The page may be wedged; try again, reload, or use another tab.`)), limit);
+          timer = setTimeout(() => ((call.cancelled = true), reject(new ToolError(`${name} did not finish within ${Math.round(limit / 1000)} s. The page may be wedged; try again, reload, or use another tab.`))), limit);
         }),
       ]);
     } catch (e: any) {

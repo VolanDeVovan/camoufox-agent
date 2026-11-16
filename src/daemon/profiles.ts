@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { BrowserContext, Page } from "playwright-core";
 import { TEMP_PROFILE, validateProfileName } from "../paths.js";
 import { requireBrowser } from "./install.js";
-import { foreignLockHolder, launchProfile } from "./launch.js";
+import { browserPid, foreignLockHolder, launchProfile } from "./launch.js";
 import type { Daemon } from "./state.js";
 import { ToolError } from "./state.js";
 
@@ -21,6 +21,8 @@ export interface RunningProfile {
   opening: Promise<unknown>;
   /** Set while we wait for a tab we asked the browser to open. */
   expecting: ((page: Page) => void) | null;
+  /** The page that tab is being opened from. */
+  expectingFrom: Page | null;
   /** The page the daemon last selected in this window (follow-the-agent). */
   visible: Page | null;
   /** The last agent action in this browser, to attribute tabs a site opens without an opener. */
@@ -127,9 +129,17 @@ export class ProfileManager {
       throw err;
     }
     this.daemon.log(`profile ${name} launched in ${Date.now() - started} ms`);
+    let died = false;
+    const early = () => (died = true);
+    context.on("close", early);
     const pages = context.pages();
     // Session restore must not reopen tabs behind anyone's back: sessions own tabs (03).
     for (const extra of pages.slice(1)) await extra.close().catch(() => {});
+    if (died) {
+      if (temp) rmSync(dir, { recursive: true, force: true });
+      throw new ToolError(`The browser of profile "${name}" exited right after it started. Try again.`);
+    }
+    context.off("close", early);
     const profile: RunningProfile = {
       name,
       dir,
@@ -138,6 +148,7 @@ export class ProfileManager {
       initialPage: pages[0] ?? null,
       opening: Promise.resolve(),
       expecting: null,
+      expectingFrom: null,
       visible: pages[0] ?? null,
       lastAction: null,
       closing: false,
@@ -183,7 +194,17 @@ export class ProfileManager {
         : `The browser of profile "${name}" was closed by another session (close_browser); your tabs in it are gone. The next use of the profile relaunches it.`,
       by,
     );
-    await Promise.race([profile.context.close().catch(() => {}), new Promise((r) => setTimeout(r, 10000))]);
+    const closed = await Promise.race([profile.context.close().then(() => true, () => true), new Promise<boolean>((r) => setTimeout(() => r(false), 10000))]);
+    if (!closed) {
+      // It will not close: kill it, so that it is neither left running nor left holding the profile.
+      const pid = browserPid(profile.dir);
+      this.daemon.log(`profile ${name} did not close within 10 s; killing pid ${pid}`);
+      if (pid) {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {}
+      }
+    }
     if (this.entries.get(name) === entry) this.entries.delete(name);
     if (profile.temp) rmSync(profile.dir, { recursive: true, force: true });
     return true;

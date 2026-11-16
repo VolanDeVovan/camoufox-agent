@@ -72,10 +72,13 @@ export class DaemonClient {
     let socket = await tryConnect(this.socketFile);
     if (!socket) {
       this.spawnDaemon();
-      const deadline = Date.now() + 20000;
-      while (!socket && Date.now() < deadline) {
+      const deadline = Date.now() + 30000;
+      for (let tries = 1; !socket && Date.now() < deadline; tries++) {
         await sleep(100);
         socket = await tryConnect(this.socketFile);
+        // A daemon that is shutting down still holds the lock for a while, and the one
+        // we started then exits at once: start another every couple of seconds.
+        if (!socket && tries % 20 === 0) this.spawnDaemon();
       }
       if (!socket) throw new Error(`Could not start the camoufox-agent daemon (see ${this.socketFile}.log).`);
     }

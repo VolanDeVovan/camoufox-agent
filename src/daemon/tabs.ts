@@ -3,6 +3,7 @@ import type { Frame, Page } from "playwright-core";
 import { attachCapture, type ConsoleEntry, type DialogAnswer, type NetEntry } from "./capture.js";
 import type { RunningProfile } from "./profiles.js";
 import type { Daemon, Session } from "./state.js";
+import { maskUrl } from "./redact.js";
 import { ToolError } from "./state.js";
 
 export interface TabEvent {
@@ -117,19 +118,22 @@ export class TabRegistry {
 
   /** A page appeared in a browser: ours, a site's popup, or one the user opened by hand. */
   private async onPage(profile: RunningProfile, page: Page): Promise<void> {
-    if (profile.expecting) {
+    const opener = await page.opener().catch(() => null);
+    // The tab we asked for starts blank and comes from the page we opened it from (Juggler
+    // reports that page as its opener even with noopener). A popup another page opens
+    // at the same moment is not handed to whoever is waiting.
+    if (profile.expecting && (!opener || opener === profile.expectingFrom) && /^(about:blank)?$/.test(page.url())) {
       const resolve = profile.expecting;
       profile.expecting = null;
       resolve(page);
       return;
     }
-    let parent: Tab | undefined;
-    try {
-      const opener = await page.opener();
-      if (opener) parent = this.byPage.get(opener);
-    } catch {}
-    // A link with rel=noopener has no opener; a tab appearing right after an agent action is that action's.
-    if (!parent && profile.lastAction && Date.now() - profile.lastAction.at < 3000) parent = this.byPage.get(profile.lastAction.page);
+    let parent: Tab | undefined = opener ? this.byPage.get(opener) : undefined;
+    // A link with rel=noopener has no opener; a tab appearing right after an agent action
+    // is that action's. A tab the user opens by hand (Ctrl+T: about:newtab / about:home)
+    // is not, and belongs to no session.
+    const byHand = /^about:(newtab|home|privatebrowsing|welcome)/.test(page.url());
+    if (!parent && !byHand && profile.lastAction && Date.now() - profile.lastAction.at < 1500) parent = this.byPage.get(profile.lastAction.page);
     if (this.byPage.has(page) || page.isClosed()) return;
     const tab = this.register(page, profile, parent?.owner ?? null);
     profile.visible = page; // Firefox selects a tab a page opens
@@ -142,7 +146,7 @@ export class TabRegistry {
     if (profile.visible === tab.page) profile.visible = null;
     const session = tab.owner ? this.daemon.sessions.get(tab.owner) : undefined;
     if (!session || tab.closedByAgent) return;
-    const what = `Tab ${tab.id} (${profile.name}, ${tab.url() || "about:blank"}) was closed by the user or by the page.`;
+    const what = `Tab ${tab.id} (${profile.name}, ${maskUrl(tab.url()) || "about:blank"}) was closed by the user or by the page.`;
     const wasActive = session.activeTab === tab.id;
     if (wasActive) {
       session.activeTab = null;
@@ -200,6 +204,11 @@ export class TabRegistry {
     const run = profile.opening.then(() => this.openIn(profile, session));
     profile.opening = run.catch(() => {});
     const tab = await run;
+    if (this.daemon.sessions.get(session.id) !== session) {
+      // The session went away while its tab was opening: nobody would ever close it.
+      await this.close(tab).catch(() => {});
+      throw new ToolError("The session ended before the tab opened.");
+    }
     session.activeTab = tab.id;
     session.lostActive = null;
     return { tab, created };
@@ -236,22 +245,21 @@ export class TabRegistry {
   }
 
   private async openBeside(profile: RunningProfile, opener: Page): Promise<Page | null> {
+    let timer: NodeJS.Timeout;
     const appeared = new Promise<Page | null>((resolve) => {
-      const timer = setTimeout(() => {
-        profile.expecting = null;
-        resolve(null);
-      }, 5000);
-      profile.expecting = (page) => {
+      const expecting = (page: Page) => {
         clearTimeout(timer);
         resolve(page);
       };
+      timer = setTimeout(() => {
+        if (profile.expecting === expecting) profile.expecting = null;
+        resolve(null);
+      }, 5000);
+      profile.expecting = expecting;
+      profile.expectingFrom = opener;
     });
-    try {
-      await opener.evaluate(OPEN_TAB_JS);
-    } catch {
-      profile.expecting = null;
-      return null;
-    }
+    // A page with a busy main thread never answers: the wait is on the tab appearing, not on this call.
+    opener.evaluate(OPEN_TAB_JS).catch(() => {});
     return appeared;
   }
 
@@ -312,7 +320,7 @@ export class TabRegistry {
   async describe(session: Session): Promise<string> {
     const mine = this.of(session);
     if (!mine.length) return "This session has no tabs; tabs_create opens one.";
-    const lines = await Promise.all(mine.map(async (t) => `${t.id} (${t.profile.name}) ${t.url()}`));
+    const lines = await Promise.all(mine.map(async (t) => `${t.id} (${t.profile.name}) ${maskUrl(t.url())}`));
     return `Your tabs: ${lines.join("; ")}.`;
   }
 
@@ -332,6 +340,7 @@ export class TabRegistry {
       try {
         await tab.page.goto("about:blank", { waitUntil: "commit", timeout: 5000 });
       } catch {}
+      if (tab.blocking) await tab.page.unroute("**/*", tab.blocking.handler).catch(() => {});
       tab.page.removeAllListeners();
       if (!tab.page.isClosed()) this.register(tab.page, tab.profile, null).pristine = true;
       return;

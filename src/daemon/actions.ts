@@ -46,7 +46,8 @@ async function signature(tab: Tab): Promise<Signature | null> {
 
 function describeChange(a: Signature, b: Signature): string[] {
   const out: string[] = [];
-  if (a.hash !== b.hash) out.push(`URL hash ${a.hash || "(none)"} -> ${b.hash || "(none)"}`);
+  const hash = (h: string) => (h ? maskUrl(h) : "(none)");
+  if (a.hash !== b.hash) out.push(`URL hash ${hash(a.hash)} -> ${hash(b.hash)}`);
   if (a.n !== b.n) out.push(`DOM size ${a.n} -> ${b.n} elements`);
   if (a.textHash !== b.textHash) out.push(a.textLen === b.textLen ? "text changed" : `text ${a.textLen} -> ${b.textLen} chars`);
   if (a.form !== b.form) out.push("a field value changed");
@@ -77,6 +78,7 @@ export async function observe(tab: Tab, act: () => Promise<void>, opts: { waitMs
 
   const lines: string[] = [];
   let latest: Signature | null = null;
+  let looks = 0;
   const deadline = Date.now() + waitMs;
   for (;;) {
     if (page.isClosed()) {
@@ -85,6 +87,7 @@ export async function observe(tab: Tab, act: () => Promise<void>, opts: { waitMs
     }
     const navSeen = tab.navSeq;
     const now = await signature(tab); // null while a navigation is in flight
+    if (now) looks++;
     if (navSeen !== nav0) {
       // A change of the hash alone is the same document: report it as a page change.
       const hashOnly = !!now && !!before && now.url === before.url && noHash(page.url()) === url0 && now.hash !== before.hash;
@@ -121,6 +124,10 @@ export async function observe(tab: Tab, act: () => Promise<void>, opts: { waitMs
   for (const e of events) {
     if (e.done) await Promise.race([e.done, sleep(8000)]);
     lines.unshift(e.text);
+  }
+  if (!lines.length && (!before || !looks)) {
+    // Not the same as nothing happening: saying so would invite a second click.
+    lines.push("could not tell what the page did: it was too busy to answer during the watch. Check with read_page before repeating the action");
   }
   if (!lines.length) {
     const focus = before && latest && latest.focus !== before.focus ? (latest.focus ? ` (focus moved to ${latest.focus})` : " (focus left the field)") : "";
@@ -169,12 +176,21 @@ const INSPECT_FN = `function (el) {
   return { shown: shown, inView: inView, disabled: disabled, covered: covered, desc: desc(el), fx: x - r.left, fy: y - r.top, w: r.width, h: r.height };
 }`;
 
+/** In the top document: what lies at a point, unless it is a frame (or nothing). `function (x, y) -> string | null` */
+const TOP_HIT_FN = `function (x, y) {
+  var hit = document.elementFromPoint(x, y);
+  while (hit && hit.shadowRoot) { var inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; }
+  if (!hit || hit.tagName === "IFRAME" || hit.tagName === "FRAME") return null;
+  var t = (hit.innerText || "").replace(/\\s+/g, " ").trim().slice(0, 40);
+  return "<" + hit.tagName.toLowerCase() + (hit.id ? "#" + hit.id : "") + ">" + (t ? ' "' + t + '"' : "");
+}`;
+
 /**
  * Resolve a ref to a point to act on, refusing what a person could not click:
  * disabled or hidden -> refused, nothing fired; covered -> names the covering element.
  */
 export async function targetOf(tab: Tab, ref: string, verb = "clicked"): Promise<Target> {
-  const { locator } = await refLocator(tab, ref);
+  const { locator, frame } = await refLocator(tab, ref);
   await locator.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
   let info: any;
   try {
@@ -188,6 +204,12 @@ export async function targetOf(tab: Tab, ref: string, verb = "clicked"): Promise
   if (info.covered) throw new ToolError(`Not ${verb}: ${info.desc} (${ref}) is covered by ${info.covered}. Nothing was fired. Deal with the covering element first (close it, or scroll).`);
   const box = await locator.boundingBox({ timeout: 3000 }).catch(() => null);
   if (!box) throw new ToolError(`Not ${verb}: ${info.desc} (${ref}) has no box on screen. Nothing was fired.`);
+  if (frame !== tab.page.mainFrame()) {
+    // The check above looked inside the element's own frame. Something in the top
+    // document (a modal, a cookie banner) may still lie over that frame at this point.
+    const over = await evalWithin<string | null>(tab.page, `(${TOP_HIT_FN})(${box.x + info.fx}, ${box.y + info.fy})`, 3000);
+    if (over) throw new ToolError(`Not ${verb}: ${info.desc} (${ref}) is inside a frame that is covered by ${over} at that point. Nothing was fired. Deal with the covering element first.`);
+  }
   const secret = await callOn<boolean>(locator, IS_SECRET_FN).catch(() => false);
   return { locator, x: box.x + info.fx, y: box.y + info.fy, label: info.desc, secret };
 }

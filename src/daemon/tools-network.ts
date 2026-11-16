@@ -1,7 +1,7 @@
 // read_console_messages, read_network_requests and the `network` group (05-tools.md).
 // Capture is on from the moment a tab exists (capture.ts); everything shown is masked
 // unless reveal_values (07).
-import { writeFileSync } from "node:fs";
+import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fail, text } from "../protocol.js";
 import { VERSION, downloadsDir, ensureDir } from "../paths.js";
@@ -215,6 +215,7 @@ tool("export_har", (call, args) =>
       : join(ensureDir(downloadsDir(), 0o755), `tab-${tab.id}-${new Date().toISOString().replace(/[:.]/g, "-")}.har`);
     // The file holds real cookies and tokens: owner-only.
     writeFileSync(target, JSON.stringify(har, null, 1), { mode: 0o600 });
+    chmodSync(target, 0o600); // the mode above applies only to a file that did not exist
     return text(`Wrote ${entries.length} request(s) of tab ${tab.id} as HAR 1.2 to ${target} (mode 0600: it holds real cookies and tokens, unmasked).`);
   }));
 
