@@ -1,5 +1,5 @@
 // Launch configuration: the same for every launch, fixed per profile.
-import { existsSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, readlinkSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BrowserContext } from "playwright-core";
 import { decodeMozLz4, encodeMozLz4 } from "./mozlz4.js";
@@ -146,7 +146,10 @@ export function forgetTabs(profileDir: string): void {
       state.windows = [{ ...first, tabs: [{ entries: [] }], selected: 1, _closedTabs: [] }];
       state._closedWindows = [];
       if (state.selectedWindow) state.selectedWindow = 1;
-      writeFileSync(file, encodeMozLz4(Buffer.from(JSON.stringify(state), "utf8")));
+      // Atomic: a write cut short must not leave a truncated store, which would lose the cookies.
+      const tmp = `${file}.cfa-tmp`;
+      writeFileSync(tmp, encodeMozLz4(Buffer.from(JSON.stringify(state), "utf8")));
+      renameSync(tmp, file);
     } catch {}
   }
 }
