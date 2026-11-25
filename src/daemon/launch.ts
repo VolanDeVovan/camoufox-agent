@@ -1,7 +1,8 @@
 // Launch configuration: the same for every launch, fixed per profile.
-import { existsSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BrowserContext } from "playwright-core";
+import { decodeMozLz4, encodeMozLz4 } from "./mozlz4.js";
 import { holds, largestDisplay, screenFor, setScreen, type Size } from "./display.js";
 import { refEngineReady } from "./snapshot.js";
 
@@ -119,7 +120,39 @@ async function launchOnce(profileDir: string, headless: boolean, os: string, mus
   })) as BrowserContext;
 }
 
+/**
+ * Strip the tabs from a profile's session store, keeping the rest (cookies without an
+ * expiry). Session restore is on for those cookies, but the tabs it would bring back
+ * belong to no session. Closing them after the launch is not enough: a tab restored
+ * lazily reports about:blank until it is selected, so it passes for the fresh blank
+ * first page.
+ *
+ * TODO: find a better way. This edits Firefox's internal session file, which has no
+ * API; a pref that restores cookies without tabs, or keeping session cookies some
+ * other way, would remove the need.
+ */
+export function forgetTabs(profileDir: string): void {
+  const backups = join(profileDir, "sessionstore-backups");
+  let names: string[] = [];
+  try {
+    names = readdirSync(backups).filter((n) => /^(recovery\.(jsonlz4|baklz4)|previous\.jsonlz4|upgrade\.jsonlz4-.*)$/.test(n));
+  } catch {}
+  for (const file of [join(profileDir, "sessionstore.jsonlz4"), ...names.map((n) => join(backups, n))]) {
+    try {
+      const state = JSON.parse(decodeMozLz4(readFileSync(file)).toString("utf8"));
+      if (!Array.isArray(state.windows)) continue;
+      // One window with one blank tab: an empty window list would skip the restore, cookies included.
+      const first = state.windows[0] || {};
+      state.windows = [{ ...first, tabs: [{ entries: [] }], selected: 1, _closedTabs: [] }];
+      state._closedWindows = [];
+      if (state.selectedWindow) state.selectedWindow = 1;
+      writeFileSync(file, encodeMozLz4(Buffer.from(JSON.stringify(state), "utf8")));
+    } catch {}
+  }
+}
+
 export async function launchProfile(profileDir: string, headless: boolean): Promise<BrowserContext> {
+  forgetTabs(profileDir);
   // The ref selector engine has to exist before the context is created.
   await refEngineReady();
   const os = HOST_OS[process.platform] || "linux";

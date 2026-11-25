@@ -1,7 +1,10 @@
 // Daemon lifecycle: one daemon under a start race, idle exit, no orphan Camoufox on any
 // exit path, relaunch after a browser crash. Orphans and double launches are the
 // failures the reference spent releases on.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, expect, test } from "vitest";
+import { decodeMozLz4 } from "../src/daemon/mozlz4.js";
 import { browsersOn, cleanupTemps, daemonPids, fixture, sleep, startSession, tempDir, waitFor } from "./helpers.js";
 
 afterAll(cleanupTemps);
@@ -168,5 +171,42 @@ test("a session that arrives while the daemon is shutting down gets a new daemon
   } finally {
     await first.close();
     await second.close();
+  }
+});
+
+test("a browser the user closed comes back without its old tabs", async () => {
+  const dir = tempDir();
+  const site = await fixture({
+    "/a": (_req, res) => {
+      // No expiry: only session restore keeps it across a restart.
+      res.setHeader("set-cookie", "sid=kept; Path=/");
+      res.setHeader("content-type", "text/html");
+      res.end("<title>Old A</title>a");
+    },
+    "/b": "<title>Old B</title>b",
+    "/c": "<title>New C</title>c",
+  });
+  const s = await startSession({ profilesDir: dir });
+  try {
+    await s.call("navigate", { url: site.base + "/a" });
+    await s.call("tabs_create", { url: site.base + "/b" });
+    await sleep(7000); // let Firefox write its session store
+    const [browser] = browsersOn(dir);
+    process.kill(browser, "SIGKILL");
+    await waitFor(() => browsersOn(dir).length === 0, 10000);
+    await sleep(300);
+    await s.call("navigate", { url: site.base + "/c" }); // reports the exit
+    await s.call("navigate", { url: site.base + "/c" });
+    await sleep(3000);
+    const ctx = await s.call("tabs_context");
+    expect(ctx.text).toContain("New C");
+    expect(ctx.text).not.toMatch(/Old A|Old B|\/a\b|\/b\b/);
+    // The session store lost its tabs, not its cookies.
+    expect((await s.call("cookies", { reveal_values: true })).text).toContain("kept");
+    const store = join(dir, "default", "sessionstore-backups", "recovery.jsonlz4");
+    expect(decodeMozLz4(readFileSync(store)).toString()).not.toContain(site.base + "/b");
+  } finally {
+    await s.close();
+    await site.close();
   }
 });

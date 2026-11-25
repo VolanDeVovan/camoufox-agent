@@ -14,7 +14,9 @@ $XDG_DATA_HOME/camoufox-agent/profiles/<name>/     (~/.local/share/... by defaul
   the existing names, so a typo does not silently fork an identity.
 - Names match `[a-z0-9][a-z0-9-]*`. `temp` is a throwaway profile, deleted when its browser closes (with its last tab).
 - There is no delete tool: removing a profile is `rm -rf` of its directory.
-- Session restore is on, so cookies without an expiry survive a browser restart.
+- Session restore is on, so cookies without an expiry survive a browser restart. The tabs
+  it would bring back are stripped from the session store before each launch: a
+  relaunched browser starts with one blank tab, not with the tabs it had.
 
 ## The rules the agent is given
 

@@ -41,3 +41,17 @@ export function decodeMozLz4(file: Buffer): Buffer {
   }
   return out.subarray(0, op);
 }
+
+/** Encode as mozlz4: one literal-only sequence, which every LZ4 decoder accepts. */
+export function encodeMozLz4(data: Buffer): Buffer {
+  const size = Buffer.alloc(4);
+  size.writeUInt32LE(data.length);
+  const lengths: number[] = [];
+  if (data.length >= 15) {
+    let rest = data.length - 15;
+    for (; rest >= 255; rest -= 255) lengths.push(255);
+    lengths.push(rest);
+  }
+  const token = Buffer.from([Math.min(data.length, 15) << 4]);
+  return Buffer.concat([MAGIC, size, token, Buffer.from(lengths), data]);
+}
